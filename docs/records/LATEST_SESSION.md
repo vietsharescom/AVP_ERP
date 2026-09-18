@@ -86,6 +86,35 @@ hiểu đúng trước khi viết. Andy duyệt ("f2 ok") → code:
   Excel trực tiếp) — quyết định phạm vi tự đưa ra lúc code, chưa hỏi Andy
   riêng, để dành FID sau nếu cần.
 
+**F2. FID-ERP-003 — Trạm nhập liệu Xưởng — DRAFT v1.1** (2026-09-18): viết
+`docs/features/FID-ERP-003_20260918.md`, **chưa duyệt**. Đọc THAM KHẢO
+`D:\AVP_AI\docs\features\FID-001_ingest-workstation-archive.md` +
+`Data/BANG_MA_THAM_CHIEU_AVP_2026-09-17.xlsx` (sheet mã máy/mã nhân viên
+— tự ghi rõ "CHƯA validate/CHƯA có danh sách chính thức", không dùng làm
+enum cứng).
+
+v1.0 (bản đầu) đẩy "rework" sang FID-ERP-007 — Andy sửa lại ngay: rework
+(hàng lỗi TRONG lúc lựa nhưng CÒN DÙNG ĐƯỢC, tạm giữ chờ xử lý lại) là
+khái niệm KHÁC CẤP ĐỘ với FID-ERP-007 (Traveler ĐÃ XUẤT bị trả lại toàn
+bộ) — đúng như AVP_AI đã phân biệt rõ. Việt sửa v1.1: **sửa cả
+FID-ERP-001 lên v1.5** (đã DONE/APPROVED, đã code+test trước đó) — thêm
+`REWORK` vào enum `MoveType` + cột `note` (TEXT) trên `stock_moves`,
+hỏi Andy xác nhận qua `AskUserQuestion` trước khi sửa (đồng ý), chạy
+migration `20260918015252_add_rework_movetype_and_note` trên cả 2 DB
+(dev + test — phải baseline test DB bằng `migrate resolve --applied` vì
+chưa có lịch sử migration), 28/28 test cũ vẫn PASS, build OK.
+
+Phạm vi FID-ERP-003 v1.1: 1 route ghi `SELECT` (qty lựa được) + N `SCRAP`
+(theo từng loại defect, phế liệu) + 0..1 `REWORK` (qty+note, tạm giữ chờ
+xử lý) trong 1 transaction, `sourceStation` cố định `"FACTORY"` ở
+server, `totalDefectQty` tự tính trong response. **Quyết định vẫn cần
+Andy xác nhận**: hỏi Andy về Partial Qty (anh trả lời: "phần sản phẩm
+tốt nhưng chưa đủ mẻ xuất hàng, gom theo lot") → phân tích: KHÔNG cần
+ghi thêm gì ở FID này, Partial chỉ là số liệu suy ra được từ so sánh
+`SUM(SELECT/PACK)` theo `lot_no` với ngưỡng xuất hàng tối thiểu — để
+dành 1 FID báo cáo riêng sau. **Andy cần xác nhận hướng phân tích
+Partial này đúng không, rồi mới duyệt FID-ERP-003 để code.**
+
 **G. ODOO_COMPARISON.md** (2026-09-18): tài liệu đối chiếu kiến trúc
 chính thức — 9 khía cạnh AVP_ERP khác Odoo chuẩn, mỗi điểm kèm bằng chứng
 dữ liệu thật hoặc quyết định đã có. Phát hiện: ý tưởng "1 sổ cái" này đã
@@ -117,14 +146,17 @@ dữ liệu thật hoặc quyết định đã có. Phát hiện: ý tưởng "1
 
 ### 4. VIỆC ĐANG MỞ — hỏi Owner trước khi tự suy diễn
 
-1. **`GEMINI_API_KEY` thật** — `webapp/.env` đang để trống, `/capture` không
+1. **FID-ERP-003 chưa duyệt** — Andy đọc
+   `docs/features/FID-ERP-003_20260918.md`, xác nhận hướng phân tích
+   Partial (Mục 8 — không ghi gì mới, chỉ suy ra từ sổ cái theo lot) có
+   đúng không, rồi gõ APPROVED nếu OK để code tiếp.
+2. **`GEMINI_API_KEY` thật** — `webapp/.env` đang để trống, `/capture` không
    gọi OCR thật được cho tới khi Andy dán key vào (model cụ thể cũng
    `[TO BE CONFIRMED]`, tạm dùng `gemini-3.5-flash-lite` như AVP_AI).
-2. **Excel input cho FID-ERP-002** — quyết định tạm hoãn (Gemini vision
+3. **Excel input cho FID-ERP-002** — quyết định tạm hoãn (Gemini vision
    không đọc trực tiếp .xlsx/.xlsm), chỉ làm ảnh/PDF trước. Andy xác nhận
    có cần làm tiếp không, hay để dành khi có nhu cầu thật.
-3. **Checklist hạ tầng** (`FACILITIES_SETUP.md` §5) — khoảng cách Office↔Xưởng (quyết định Cat6/WiFi), ai quản trị máy chủ.
-4. **Danh sách đầy đủ mã máy lựa + tên các ca** (ngoài "Mrnng" đã thấy) — không chặn code (TEXT tự do) nhưng cần trước UI FID-ERP-003.
+4. **Checklist hạ tầng** (`FACILITIES_SETUP.md` §5) — khoảng cách Office↔Xưởng (quyết định Cat6/WiFi), ai quản trị máy chủ.
 5. **Backup**: ngân sách/thiết bị cụ thể + RPO/RTO chính thức — Andy chọn "để sau", có kế hoạch mặc định trong `RISK_REGISTER.md` R-D01.
 6. **FID-ERP-005** (Status Good/Hold): cần `move_type` riêng cho đổi trạng thái SAU khi đã qua SELECT, hay dùng lại SELECT? — quyết khi viết FID đó.
 7. **Budget, timeline, team cụ thể** (bao nhiêu người Office/Xưởng, tên người giữ vai Giám đốc/Quản lý Máy 4) — `[TO BE CONFIRMED]`.
@@ -160,9 +192,11 @@ dụng).
    `webapp/.env` rồi thử `/capture` thật với file mẫu (`Data/2. Traveler/
    TRAVELER SHEETS SEP 9.pdf`) trước khi coi là chạy được thật (test hiện
    tại chỉ mock Gemini).
-3. FID-ERP-003 (Xưởng, nhập tay, ghi rõ `machine_code`/`operator_code`/
-   `shift`) là bước tiếp theo hợp lý theo `FID_LIST.md` — cần viết FID
-   trước (Status APPROVED) rồi mới code, đúng quy trình.
+3. FID-ERP-003 đã viết DRAFT (`docs/features/FID-ERP-003_20260918.md`) —
+   nếu Andy đã duyệt (xác nhận hướng Partial + gõ APPROVED) → code
+   `webapp/app/factory/select/...` + `webapp/app/api/factory/...` theo
+   Mục 4/5, viết test, chạy PASS 100%, cập nhật CHANGELOG.md. Nếu chưa
+   duyệt → hỏi lại trước khi code (nguyên tắc #1).
 4. Việc khác theo Mục 4 trên, ưu tiên theo thứ tự Andy chọn.
 
 ---

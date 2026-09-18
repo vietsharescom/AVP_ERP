@@ -18,6 +18,7 @@ enum MoveType {
   SHIP
   SCRAP
   RETURN
+  REWORK // v1.5 (FID-ERP-001) — hàng lỗi TRONG lúc lựa nhưng CÒN DÙNG ĐƯỢC, tạm giữ chờ xử lý lại (khác RETURN/FID-ERP-007 — Traveler ĐÃ xuất bị trả lại)
 }
 
 model Lot {
@@ -73,6 +74,7 @@ model StockMove {
   potNo         String?   @map("pot_no") // dùng khi RETURN, link GAYLORD
   sourceStation String?   @map("source_station") // "OFFICE" | "FACTORY" | "ADMIN"
   deviceId      String?   @map("device_id") // vd "OFFICE-PC-01"
+  note          String? // v1.5 (FID-ERP-001) — ghi chú tự do, dùng cho REWORK (lý do giữ lại chờ xử lý)
   createdAt     DateTime  @default(now()) @map("created_at")
   // KHÔNG có updatedAt — bảng bất biến
 

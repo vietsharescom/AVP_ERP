@@ -31,3 +31,14 @@
   Gemini OCR được mock vì chưa có `GEMINI_API_KEY` thật), lint sạch, build
   thành công. Excel (.xlsx/.xlsm) CHƯA hỗ trợ ở FID này (chặn 400, để dành
   FID sau — Gemini vision chỉ nhận ảnh/PDF).
+
+### Changed
+- schema: `stock_moves.move_type` thêm giá trị `REWORK` + thêm cột
+  `stock_moves.note` (TEXT, nullable) [FID-ERP-001 v1.5] — phát sinh khi
+  viết FID-ERP-003: hàng lỗi TRONG lúc lựa nhưng CÒN DÙNG ĐƯỢC (tạm giữ
+  chờ xử lý lại), khác `SCRAP` (loại bỏ hẳn) và khác `RETURN`/FID-ERP-007
+  (Traveler ĐÃ XUẤT bị trả lại toàn bộ). Migration
+  `20260918015252_add_rework_movetype_and_note` áp dụng cho cả `avp_erp`
+  (dev) và `avp_erp_test` (test — phải baseline bằng `prisma migrate
+  resolve --applied` trước vì db test chưa có lịch sử migration). 28/28
+  test cũ vẫn PASS, build thành công.
