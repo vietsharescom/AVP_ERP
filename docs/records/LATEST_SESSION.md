@@ -11,7 +11,7 @@
 | Session | SES-20260917-001 đến SES-20260918-002 |
 | Chủ dự án | Andy Phan (Viet), Maple Leaf Group |
 | Git | Vẫn CHƯA init (Andy chọn "không cần" khi được hỏi 2026-09-17) |
-| Trạng thái | **FID-ERP-001 (v1.5) + FID-ERP-002 + FID-ERP-003 DONE — code thật, 37/37 test PASS.** 9 FID còn lại CHƯA VIẾT. `webapp/` (Next.js+Prisma+PostgreSQL) đã tồn tại và chạy được. |
+| Trạng thái | **FID-ERP-001 (v1.5) + 002 + 003 + 004 DONE — code thật, 44/44 test PASS.** 8 FID còn lại CHƯA VIẾT. `webapp/` (Next.js+Prisma+PostgreSQL) đã tồn tại và chạy được. |
 
 ---
 
@@ -121,6 +121,27 @@ sổ cái theo lot) → coi là APPROVED → code:
   file FID (Mục 10 THỰC HIỆN). Phải chạy `npx prisma generate` sau
   migration v1.5, nếu không Prisma Client cũ không nhận `REWORK`.
 
+**F3. FID-ERP-004 — GlobalSearchBar tương đương — DUYỆT + CODE THẬT**
+(2026-09-18): viết `docs/features/FID-ERP-004_20260918.md`, đọc THAM
+KHẢO `D:\AVP_AI\webapp\src\components\GlobalSearchBar.tsx`. Andy duyệt
+("ok code f4") → code:
+- `webapp/app/api/search/route.ts` — GET, `ILIKE` trên `travelers`
+  (travelerNo/partNo/poNo/potNo/lotNo)/`packing_slips`(psNo)/
+  `part_control`(partNo), mỗi nhóm tối đa 8, query rỗng → trả rỗng ngay
+  không chạm DB
+- `webapp/components/GlobalSearchBar.tsx` — client component, debounce
+  300ms, gắn vào `webapp/app/layout.tsx` (hiện MỌI trang, đối xứng cả 3
+  điểm truy cập, không phân quyền)
+- `shipped`/`lastMoveType`/`lastMoveAt` suy từ `stock_moves` (N+1 chặn
+  trên tối đa 8 kết quả đã lọc, không phải toàn bảng)
+- 7 test mới (`webapp/tests/integration/search.test.ts`) + 37 test cũ
+  không hồi quy = **44/44 PASS**, lint sạch, build thành công
+- Lệch nhỏ: `req.nextUrl` không dùng được khi test gọi route trực tiếp
+  bằng `Request` chuẩn → đổi sang `new URL(req.url)` (hoạt động cả 2).
+  ESLint rule mới `react-hooks/set-state-in-effect` chặn `setLoading(true)`
+  gọi ngay đầu effect → dời vào trong callback `setTimeout` (không đổi
+  UX debounce).
+
 **G. ODOO_COMPARISON.md** (2026-09-18): tài liệu đối chiếu kiến trúc
 chính thức — 9 khía cạnh AVP_ERP khác Odoo chuẩn, mỗi điểm kèm bằng chứng
 dữ liệu thật hoặc quyết định đã có. Phát hiện: ý tưởng "1 sổ cái" này đã
@@ -201,10 +222,13 @@ dụng).
 3. FID-ERP-003 đã DONE — nếu cần thử thật, dùng UI `/factory/select`
    (cần 1 Traveler đã RECEIVE từ `/capture` trước, vì route không tự tạo
    Traveler mới).
-4. FID-ERP-004 (GlobalSearchBar tương đương, search đối xứng cả 3 điểm
-   truy cập) là bước tiếp theo hợp lý theo `FID_LIST.md` — cần viết FID
-   trước (Status APPROVED) rồi mới code, đúng quy trình.
-5. Việc khác theo Mục 4 trên, ưu tiên theo thứ tự Andy chọn.
+4. FID-ERP-004 đã DONE — ô search hiện ở đầu MỌI trang (gắn trong
+   `layout.tsx`), gõ Traveler#/Part#/PO#/Pot#/Lot#/PS# để thử.
+5. FID-ERP-005 (Status Good/Hold, Xưởng) là bước tiếp theo hợp lý theo
+   `FID_LIST.md` — còn câu hỏi mở CHƯA quyết (move_type riêng hay dùng
+   lại SELECT, xem FID-ERP-001 §8) — hỏi Andy khi viết FID đó. Cần viết
+   FID trước (Status APPROVED) rồi mới code, đúng quy trình.
+6. Việc khác theo Mục 4 trên, ưu tiên theo thứ tự Andy chọn.
 
 ---
 

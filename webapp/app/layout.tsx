@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import GlobalSearchBar from "../components/GlobalSearchBar";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,7 +21,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body>{children}</body>
+      <body>
+        <div style={{ maxWidth: 960, margin: "0 auto", padding: "16px 16px 0" }}>
+          <GlobalSearchBar />
+        </div>
+        {children}
+      </body>
     </html>
   );
 }

@@ -58,3 +58,13 @@
   hồi quy = **37/37 PASS**, lint sạch, build thành công. Partial Qty
   KHÔNG cần ghi mới ở FID này — suy ra được từ so sánh `SUM(SELECT/PACK)`
   theo `lot_no`, để dành báo cáo riêng sau (xem FID-ERP-003 §8).
+- feat: GlobalSearchBar tương đương — tra cứu Postgres đối xứng cả 3
+  điểm truy cập [FID-ERP-004] — `webapp/app/api/search/route.ts` (GET,
+  `ILIKE` trên `travelers`/`packing_slips`/`part_control`, mỗi nhóm tối
+  đa 8 kết quả), `webapp/components/GlobalSearchBar.tsx` (client
+  component, debounce 300ms, gắn vào `webapp/app/layout.tsx` — hiện ở
+  MỌI trang, không phân quyền theo trạm). `shipped`/`lastMoveType`/
+  `lastMoveAt` suy ra từ `stock_moves` cho tối đa 8 Traveler đã lọc,
+  không cache riêng. Query rỗng → trả 3 mảng rỗng ngay, không chạm DB.
+  7 test mới (`webapp/tests/integration/search.test.ts`) + 37 test cũ
+  không hồi quy = **44/44 PASS**, lint sạch, build thành công.
