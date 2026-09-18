@@ -1,0 +1,200 @@
+"use client";
+
+// FID-ERP-005 — kiểm tra thực tế skid ở khâu Wrapping: Good/Hold (kèm lý
+// do nếu Hold, Concession có thể đè lên Hold) + reject (lỗi phát hiện
+// THÊM ở đây, khác lần lựa FID-ERP-003).
+import { useState } from "react";
+
+type Status = "GOOD" | "HOLD";
+type RejectRow = { reasonCode: string; qty: number | null };
+
+type CheckResult = {
+  qualityCheckId: number;
+  scrapMoveIds: number[];
+  totalRejectQty: number;
+};
+
+export default function WrappingCheckPage() {
+  const [travelerNo, setTravelerNo] = useState("");
+  const [status, setStatus] = useState<Status>("GOOD");
+  const [note, setNote] = useState("");
+  const [checkedBy, setCheckedBy] = useState("");
+  const [rejects, setRejects] = useState<RejectRow[]>([]);
+  const [concessionEnabled, setConcessionEnabled] = useState(false);
+  const [concessionBy, setConcessionBy] = useState("");
+  const [concessionReason, setConcessionReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<CheckResult | null>(null);
+
+  function addRejectRow() {
+    setRejects((prev) => [...prev, { reasonCode: "", qty: null }]);
+  }
+
+  function updateRejectRow(idx: number, patch: Partial<RejectRow>) {
+    setRejects((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  }
+
+  function removeRejectRow(idx: number) {
+    setRejects((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  const canSubmit =
+    travelerNo.trim() !== "" &&
+    checkedBy.trim() !== "" &&
+    (status !== "HOLD" || note.trim() !== "") &&
+    rejects.every((r) => r.reasonCode.trim() !== "" && r.qty != null && r.qty > 0) &&
+    (!concessionEnabled || (status === "HOLD" && concessionBy.trim() !== "" && concessionReason.trim() !== "")) &&
+    !saving;
+
+  async function submit() {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/quality/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          travelerNo,
+          status,
+          note: note || undefined,
+          checkedBy,
+          reject: rejects.map((r) => ({ reasonCode: r.reasonCode, qty: r.qty })),
+          ...(concessionEnabled ? { concession: { by: concessionBy, reason: concessionReason } } : {}),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Lưu thất bại.");
+      setResult(data);
+      setTravelerNo("");
+      setStatus("GOOD");
+      setNote("");
+      setRejects([]);
+      setConcessionEnabled(false);
+      setConcessionBy("");
+      setConcessionReason("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Đã có lỗi xảy ra.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
+      <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>📦 Kiểm tra Wrapping</h1>
+      <p style={{ fontSize: 13, color: "#666", marginBottom: 16 }}>
+        Kiểm tra skid trước khi cho phép tạo Packing Slip — Good/Hold + lỗi phát hiện thêm (nếu có).
+      </p>
+
+      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
+      {result && (
+        <p style={{ color: "#166534" }}>
+          Đã lưu kiểm tra #{result.qualityCheckId}
+          {result.scrapMoveIds.length > 0 && ` — ${result.scrapMoveIds.length} reject (tổng ${result.totalRejectQty})`}.
+        </p>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+        <label>
+          Traveler#
+          <input value={travelerNo} onChange={(e) => setTravelerNo(e.target.value)} style={{ display: "block", width: "100%" }} />
+        </label>
+        <label>
+          Người kiểm tra
+          <input value={checkedBy} onChange={(e) => setCheckedBy(e.target.value)} style={{ display: "block", width: "100%" }} />
+        </label>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        {(["GOOD", "HOLD"] as Status[]).map((s) => (
+          <button
+            key={s}
+            onClick={() => setStatus(s)}
+            style={{
+              padding: "6px 14px",
+              borderRadius: 20,
+              border: "1px solid #333",
+              background: status === s ? "#111" : "#fff",
+              color: status === s ? "#fff" : "#111",
+            }}
+          >
+            {s === "GOOD" ? "Good" : "Hold"}
+          </button>
+        ))}
+      </div>
+
+      {status === "HOLD" && (
+        <label style={{ display: "block", marginBottom: 16 }}>
+          Lý do Hold
+          <input value={note} onChange={(e) => setNote(e.target.value)} style={{ display: "block", width: "100%" }} />
+        </label>
+      )}
+
+      <section style={{ marginBottom: 16 }}>
+        <h2 style={{ fontSize: 15, fontWeight: 600 }}>Lỗi phát hiện thêm ở Wrapping (reject)</h2>
+        {rejects.map((r, idx) => (
+          <div key={idx} style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+            <input
+              placeholder="Mã defect (vd LOOSE_WASHER_NUT)"
+              value={r.reasonCode}
+              onChange={(e) => updateRejectRow(idx, { reasonCode: e.target.value })}
+              style={{ flex: 1 }}
+            />
+            <input
+              type="number"
+              placeholder="Qty"
+              value={r.qty ?? ""}
+              onChange={(e) => updateRejectRow(idx, { qty: e.target.value ? Number(e.target.value) : null })}
+              style={{ width: 100 }}
+            />
+            <button onClick={() => removeRejectRow(idx)}>Xóa</button>
+          </div>
+        ))}
+        <button onClick={addRejectRow} type="button">
+          + Thêm reject
+        </button>
+      </section>
+
+      {status === "HOLD" && (
+        <section style={{ marginBottom: 16 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <input type="checkbox" checked={concessionEnabled} onChange={(e) => setConcessionEnabled(e.target.checked)} />
+            <span style={{ fontWeight: 600 }}>Concession — vẫn cho xuất dù Hold</span>
+          </label>
+          {concessionEnabled && (
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <input
+                placeholder="Người nhượng bộ"
+                value={concessionBy}
+                onChange={(e) => setConcessionBy(e.target.value)}
+                style={{ width: 160 }}
+              />
+              <input
+                placeholder="Lý do nhượng bộ"
+                value={concessionReason}
+                onChange={(e) => setConcessionReason(e.target.value)}
+                style={{ flex: 1 }}
+              />
+            </div>
+          )}
+        </section>
+      )}
+
+      <button
+        onClick={submit}
+        disabled={!canSubmit}
+        style={{
+          padding: "8px 16px",
+          background: canSubmit ? "#15803d" : "#9ca3af",
+          color: "#fff",
+          border: "none",
+          borderRadius: 6,
+          cursor: canSubmit ? "pointer" : "not-allowed",
+        }}
+      >
+        {saving ? "Đang lưu..." : "Xác nhận & Lưu"}
+      </button>
+    </main>
+  );
+}

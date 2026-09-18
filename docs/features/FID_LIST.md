@@ -1,6 +1,6 @@
 # FID_LIST.md — Master Feature Intent Document Index (AVP_ERP)
 # Kế hoạch làm việc — greenfield, Postgres + TypeScript
-# Ngày lập: 2026-09-17 | Trạng thái (2026-09-18): FID-ERP-001+002+003+004 DONE, FID-ERP-012 DRAFT, 8 FID còn lại CHƯA VIẾT/CHƯA CODE
+# Ngày lập: 2026-09-17 | Trạng thái (2026-09-18): FID-ERP-001+002+003+004+005 DONE, FID-ERP-012 DRAFT, 7 FID còn lại CHƯA VIẾT/CHƯA CODE
 
 ---
 
@@ -45,7 +45,7 @@ mục "LAYER":
 | 2 | [FID-ERP-002](FID-ERP-002_20260918.md) | CaptureGate tương đương — PO + Kho nguyên liệu | Máy 2 (Office) **+ Máy 4 (admin)** | `CaptureGate.tsx`+`TravelerSection.tsx` (có sẵn, không phải FID) | **✅ APPROVED — đang code (2026-09-18)** | 1 cổng quét, 2 đích đến (PO tham khảo / Kho nguyên liệu). "PO" chỉ đăng ký Traveler (KHÔNG ghi stock_moves); "Kho nguyên liệu" ghi RECEIVE thật |
 | 3 | [FID-ERP-003](FID-ERP-003_20260918.md) | Trạm nhập liệu Xưởng — WorkStationArchive tương đương (SELECT+SCRAP+REWORK) | Máy 3 (Xưởng) | [FID-001](../../../AVP_AI/docs/features/FID-001_ingest-workstation-archive.md) | **✅ DONE — code xong (2026-09-18)** | Nhập tay tại chỗ — **KHÔNG có quyền add file/đọc file** (chỉ Office + Máy admin được add file, xem `SOFTWARE_ARCHITECTURE.md` §2.1). **PHẢI ghi `machine_code` (kể cả lựa tay, không NULL) + `operator_code` + `shift`** (đã xác minh có thật trong `Data/4.WRAPPING/Wrapping_final.xlsm` CHECKING SUMMARY: cột `Machine`/`MC#`/`Oprtr`/`SHIFT`) — bắt buộc cho FID-ERP-012, xem `SOFTWARE_ARCHITECTURE.md` §3. Kèm sửa FID-ERP-001 lên v1.5 (thêm `REWORK` + cột `note`). Partial → không ghi mới, suy ra từ sổ cái (FID-ERP-003 Mục 8). Return-sau-khi-xuất/Good-Hold vẫn tách FID-ERP-007/005 |
 | 4 | [FID-ERP-004](FID-ERP-004_20260918.md) | GlobalSearchBar tương đương | Cả 3 điểm truy cập (**search đối xứng, giống hệt nhau**) | `GlobalSearchBar.tsx` (có sẵn, không phải FID) | **✅ DONE — code xong (2026-09-18)** | Tra Postgres bằng `ILIKE`/full-text search thay vì loop JS trên toàn bộ Sheet — nhanh hơn hẳn |
-| 5 | FID-ERP-005 | Status Good/Hold (Wrapping) | Máy 3 (Xưởng) | [FID-002](../../../AVP_AI/docs/features/FID-002_skid-status-good-hold.md) | **CHƯA VIẾT** | |
+| 5 | [FID-ERP-005](FID-ERP-005_20260918.md) | Status Good/Hold (Wrapping) + Reject | Máy 3 (Xưởng) | [FID-002](../../../AVP_AI/docs/features/FID-002_skid-status-good-hold.md) | **✅ DONE — code xong (2026-09-18)** | Kèm sửa FID-ERP-001 lên v1.6 (bảng mới `quality_checks`). `Reject` (dữ liệu thật Wrapping_final.xlsm) → ghi SCRAP, không phải trạng thái thứ 4 |
 | 6 | FID-ERP-006 | Lot placeholder + parse email Lot thật | Máy 2 (Office) | [FID-003](../../../AVP_AI/docs/features/FID-003_lot-update-and-concession.md) | **CHƯA VIẾT** | Regex bắt cặp — giữ nguyên logic đã kiểm chứng, không AI |
 | 7 | FID-ERP-007 | Rework/Return linkage (Pot#=GAYLORD) | Máy 2 (Office) | [FID-004](../../../AVP_AI/docs/features/FID-004_rework-return-linkage.md) | **CHƯA VIẾT** | Rule-based, ĐỠ phải "best-effort" tìm PS gốc nhờ `stock_moves` liên kết thật bằng khoá ngoại |
 | 8 | FID-ERP-008 | Báo cáo đối chiếu PO | Máy 2 (Office) | [FID-005](../../../AVP_AI/docs/features/FID-005_po-reconciliation-report.md) | **CHƯA VIẾT** | SQL `GROUP BY` thật thay vì đọc toàn Sheet rồi group trong code |

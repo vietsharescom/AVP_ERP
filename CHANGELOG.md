@@ -68,3 +68,28 @@
   không cache riêng. Query rỗng → trả 3 mảng rỗng ngay, không chạm DB.
   7 test mới (`webapp/tests/integration/search.test.ts`) + 37 test cũ
   không hồi quy = **44/44 PASS**, lint sạch, build thành công.
+
+### Changed
+- schema: thêm bảng `quality_checks` (append-only, trigger riêng
+  `prevent_quality_checks_mutation`) + enum `QualityStatus` (`GOOD`/
+  `HOLD`) + VIEW `traveler_last_quality_check` [FID-ERP-001 v1.6] — cổng
+  QC/workflow khâu Wrapping (Good/Hold/Concession), phát sinh khi viết
+  FID-ERP-005. Concession là 1 dòng MỚI (concessionBy/Reason/At), KHÔNG
+  UPDATE dòng cũ — đúng append-only, khác AVP_AI. Migration
+  `20260918023102_add_quality_checks` áp dụng cho cả `avp_erp` (dev) và
+  `avp_erp_test` (test). 44/44 test cũ vẫn PASS, build thành công.
+
+### Added
+- feat: Status Good/Hold (khâu Wrapping) + Reject [FID-ERP-005] —
+  `webapp/app/api/quality/check/route.ts` (POST, ghi 0..n `SCRAP`
+  (reject phát hiện thêm ở Wrapping — dữ liệu thật đối chiếu
+  `Wrapping_final.xlsm` cột `Reject`, KHÔNG phải trạng thái thứ 4, đối
+  chiếu Odoo `stock.scrap` vs `quality.check` là 2 model tách riêng) +
+  1 `quality_checks` (Good/Hold, Concession đè lên Hold) trong 1
+  transaction), `webapp/app/wrapping/check/page.tsx` (UI). `status=HOLD`
+  bắt buộc `note`; `concession` chỉ hợp lệ khi `HOLD`, cần `by`+`reason`.
+  Không tự mở rộng `defect_types` dù vài tên lỗi thật ở Wrapping
+  (`DAMAGED FLANGE`, `DAMAGED LOCKING`) chưa khớp 10 giá trị hiện có —
+  để dành, cần Andy xác nhận riêng. 11 test mới
+  (`webapp/tests/integration/quality-check.test.ts`) + 44 test cũ không
+  hồi quy = **55/55 PASS**, lint sạch, build thành công.

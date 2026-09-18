@@ -11,7 +11,7 @@
 | Session | SES-20260917-001 đến SES-20260918-002 |
 | Chủ dự án | Andy Phan (Viet), Maple Leaf Group |
 | Git | Vẫn CHƯA init (Andy chọn "không cần" khi được hỏi 2026-09-17) |
-| Trạng thái | **FID-ERP-001 (v1.5) + 002 + 003 + 004 DONE — code thật, 44/44 test PASS.** 8 FID còn lại CHƯA VIẾT. `webapp/` (Next.js+Prisma+PostgreSQL) đã tồn tại và chạy được. |
+| Trạng thái | **FID-ERP-001 (v1.6) + 002 + 003 + 004 + 005 DONE — code thật, 55/55 test PASS.** 7 FID còn lại CHƯA VIẾT. `webapp/` (Next.js+Prisma+PostgreSQL) đã tồn tại và chạy được. |
 
 ---
 
@@ -142,6 +142,30 @@ KHẢO `D:\AVP_AI\webapp\src\components\GlobalSearchBar.tsx`. Andy duyệt
   gọi ngay đầu effect → dời vào trong callback `setTimeout` (không đổi
   UX debounce).
 
+**F4. FID-ERP-005 — Status Good/Hold (Wrapping) + Reject — DUYỆT + CODE
+THẬT** (2026-09-18): Andy hỏi về cột `Reject` thật trong
+`Data/4.WRAPPING/Wrapping_final.xlsm` — kiểm chứng bằng `openpyxl`
+(2143 dòng): `Reject` là SỐ LƯỢNG (khớp theo thứ tự với tên lỗi trong
+`Special Notes`), KHÔNG phải trạng thái thứ 4 bên cạnh Good/Hold/
+Concession. Đối chiếu Odoo: `stock.scrap` (số lượng+lý do) và
+`quality.check` (Pass/Fail) TÁCH RIÊNG, không gộp. Andy xác nhận hướng
+("ok") → **sửa FID-ERP-001 lên v1.6**: thêm bảng MỚI `quality_checks`
+(append-only, trigger riêng `prevent_quality_checks_mutation`, enum
+`QualityStatus` GOOD/HOLD, Concession là LỚP ĐÈ lên Hold qua 3 cột, VIEW
+`traveler_last_quality_check`) — migration
+`20260918023102_add_quality_checks` áp dụng cả 2 DB. Viết DRAFT
+`docs/features/FID-ERP-005_20260918.md`, Andy duyệt ("ok approve") →
+code:
+- `webapp/app/api/quality/check/route.ts` — ghi 0..n `SCRAP` (reject) +
+  1 `quality_checks` trong 1 transaction; `concession` chỉ hợp lệ khi
+  `status="HOLD"`
+- `webapp/app/wrapping/check/page.tsx` — UI kiểm tra Wrapping
+- 11 test mới (`webapp/tests/integration/quality-check.test.ts`) + 44
+  test cũ không hồi quy = **55/55 PASS**, lint sạch, build thành công
+- Chưa mở rộng `defect_types` dù vài tên lỗi thật ở Wrapping
+  (`DAMAGED FLANGE`, `DAMAGED LOCKING`) không khớp 10 giá trị hiện có —
+  để dành, cần Andy xác nhận riêng.
+
 **G. ODOO_COMPARISON.md** (2026-09-18): tài liệu đối chiếu kiến trúc
 chính thức — 9 khía cạnh AVP_ERP khác Odoo chuẩn, mỗi điểm kèm bằng chứng
 dữ liệu thật hoặc quyết định đã có. Phát hiện: ý tưởng "1 sổ cái" này đã
@@ -184,7 +208,7 @@ dữ liệu thật hoặc quyết định đã có. Phát hiện: ý tưởng "1
    có cần làm tiếp không, hay để dành khi có nhu cầu thật.
 4. **Checklist hạ tầng** (`FACILITIES_SETUP.md` §5) — khoảng cách Office↔Xưởng (quyết định Cat6/WiFi), ai quản trị máy chủ.
 5. **Backup**: ngân sách/thiết bị cụ thể + RPO/RTO chính thức — Andy chọn "để sau", có kế hoạch mặc định trong `RISK_REGISTER.md` R-D01.
-6. **FID-ERP-005** (Status Good/Hold): cần `move_type` riêng cho đổi trạng thái SAU khi đã qua SELECT, hay dùng lại SELECT? — quyết khi viết FID đó.
+6. **Mở rộng `defect_types`** — vài tên lỗi thật ở Wrapping (`DAMAGED FLANGE`, `DAMAGED LOCKING`, đọc từ `Wrapping_final.xlsm` cột Special Notes) không khớp đúng 10 giá trị cố định hiện có (gần nhất "Damaged Pilot" — khác). FID-ERP-005 tạm chặn (400) nếu không khớp mã nào — Andy xác nhận có cần thêm giá trị mới không.
 7. **Budget, timeline, team cụ thể** (bao nhiêu người Office/Xưởng, tên người giữ vai Giám đốc/Quản lý Máy 4) — `[TO BE CONFIRMED]`.
 8. **File `D:\AVP_ERP\.env`** (root, ngoài `webapp/`) còn password superuser `postgres` Andy dán tạm 2026-09-17 — đã dùng xong, có thể xoá (Andy tự quyết, không tự xoá).
 9. **`LOCATION = 'F'`** trong dữ liệu thật viết tắt của gì — không ảnh hưởng thiết kế, chỉ để biết.
@@ -224,11 +248,12 @@ dụng).
    Traveler mới).
 4. FID-ERP-004 đã DONE — ô search hiện ở đầu MỌI trang (gắn trong
    `layout.tsx`), gõ Traveler#/Part#/PO#/Pot#/Lot#/PS# để thử.
-5. FID-ERP-005 (Status Good/Hold, Xưởng) là bước tiếp theo hợp lý theo
-   `FID_LIST.md` — còn câu hỏi mở CHƯA quyết (move_type riêng hay dùng
-   lại SELECT, xem FID-ERP-001 §8) — hỏi Andy khi viết FID đó. Cần viết
-   FID trước (Status APPROVED) rồi mới code, đúng quy trình.
-6. Việc khác theo Mục 4 trên, ưu tiên theo thứ tự Andy chọn.
+5. FID-ERP-005 đã DONE — dùng UI `/wrapping/check` để thử Good/Hold +
+   reject (cần 1 Traveler đã tồn tại trước, vì route không tự tạo mới).
+6. FID-ERP-006 (Lot placeholder + parse email Lot thật) là bước tiếp
+   theo hợp lý theo `FID_LIST.md` — cần viết FID trước (Status APPROVED)
+   rồi mới code, đúng quy trình.
+7. Việc khác theo Mục 4 trên, ưu tiên theo thứ tự Andy chọn.
 
 ---
 

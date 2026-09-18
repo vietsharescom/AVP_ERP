@@ -21,6 +21,14 @@ enum MoveType {
   REWORK // v1.5 (FID-ERP-001) — hàng lỗi TRONG lúc lựa nhưng CÒN DÙNG ĐƯỢC, tạm giữ chờ xử lý lại (khác RETURN/FID-ERP-007 — Traveler ĐÃ xuất bị trả lại)
 }
 
+// v1.6 (FID-ERP-001) — cổng QC/workflow ở khâu Wrapping (FID-ERP-005),
+// KHÔNG phải chuyển động số lượng nên KHÔNG dùng chung stock_moves (bảng
+// đó bắt buộc qty>0) — tách bảng riêng, cùng triết lý append-only.
+enum QualityStatus {
+  GOOD
+  HOLD
+}
+
 model Lot {
   lotNo       String   @id @map("lot_no") // vd "6-251-15-A"
   parentLotNo String?  @map("parent_lot_no") // hỗ trợ split lot (vd "6-251-15" -> "6-251-15-A")
@@ -52,11 +60,12 @@ model Traveler {
   createdAt  DateTime @default(now()) @map("created_at")
   // KHÔNG có qcStatus cache — trạng thái tính qua VIEW traveler_last_select_status hoặc query stock_moves
 
-  part         PartControl       @relation(fields: [partNo], references: [partNo])
-  lot          Lot?              @relation(fields: [lotNo], references: [lotNo])
-  moves        StockMove[]
-  packingLines PackingSlipLine[]
-  printLogs    PrintLog[]
+  part          PartControl       @relation(fields: [partNo], references: [partNo])
+  lot           Lot?              @relation(fields: [lotNo], references: [lotNo])
+  moves         StockMove[]
+  packingLines  PackingSlipLine[]
+  printLogs     PrintLog[]
+  qualityChecks QualityCheck[]
 
   @@map("travelers")
 }
@@ -124,6 +133,28 @@ model PackingSlipLine {
   traveler    Traveler    @relation(fields: [travelerNo], references: [travelerNo])
 
   @@map("packing_slip_lines")
+}
+
+/// SỔ CÁI BẤT BIẾN — append-only, KHÔNG UPDATE/DELETE (v1.6, FID-ERP-001).
+/// Concession KHÔNG sửa đè dòng Hold cũ — ghi 1 dòng MỚI (status=HOLD +
+/// concessionBy/Reason/At) khi được nhượng bộ, đúng triết lý append-only
+/// (khác AVP_AI, nơi concession UPDATE thẳng lên dòng cũ).
+model QualityCheck {
+  id               Int           @id @default(autoincrement())
+  travelerNo       String        @map("traveler_no")
+  status           QualityStatus
+  note             String? // bắt buộc (validate ở API) khi status=HOLD — lý do
+  checkedBy        String        @map("checked_by")
+  concessionBy     String?       @map("concession_by")
+  concessionReason String?       @map("concession_reason")
+  concessionAt     DateTime?     @map("concession_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  // KHÔNG có updatedAt — bảng bất biến
+
+  traveler Traveler @relation(fields: [travelerNo], references: [travelerNo])
+
+  @@index([travelerNo, createdAt])
+  @@map("quality_checks")
 }
 
 model PrintLog {
