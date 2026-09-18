@@ -110,13 +110,33 @@ dữ liệu thật hoặc quyết định đã có. Phát hiện: ý tưởng "1
 3. **Danh sách đầy đủ mã máy lựa + tên các ca** (ngoài "Mrnng" đã thấy) — không chặn code (TEXT tự do) nhưng cần trước UI FID-ERP-003.
 4. **Backup**: ngân sách/thiết bị cụ thể + RPO/RTO chính thức — Andy chọn "để sau", có kế hoạch mặc định trong `RISK_REGISTER.md` R-D01.
 5. **FID-ERP-005** (Status Good/Hold): cần `move_type` riêng cho đổi trạng thái SAU khi đã qua SELECT, hay dùng lại SELECT? — quyết khi viết FID đó.
-6. **GitHub URL, budget, timeline, team cụ thể** (bao nhiêu người Office/Xưởng, tên người giữ vai Giám đốc/Quản lý Máy 4) — `[TO BE CONFIRMED]`.
+6. **Budget, timeline, team cụ thể** (bao nhiêu người Office/Xưởng, tên người giữ vai Giám đốc/Quản lý Máy 4) — `[TO BE CONFIRMED]`. ~~GitHub URL~~ ĐÃ XONG — xem Mục 6.
 7. **File `D:\AVP_ERP\.env`** (root, ngoài `webapp/`) còn password superuser `postgres` Andy dán tạm 2026-09-17 — đã dùng xong, có thể xoá (Andy tự quyết, không tự xoá).
 8. **`LOCATION = 'F'`** trong dữ liệu thật viết tắt của gì — không ảnh hưởng thiết kế, chỉ để biết.
 
 ---
 
-### 5. BẮT ĐẦU PHIÊN SAU TỪ ĐÂY
+### 5. GIT — ĐÃ INIT + PUSH (2026-09-18, Andy tự làm qua PowerShell)
+
+Andy tự `git init` + commit + `git remote add origin` +
+`git push -u origin main` trong lúc Claude đang kiểm tra (không cần
+Claude làm hộ). Đã xác minh sau đó:
+
+- Remote: **`https://github.com/vietsharescom/AVP_ERP.git`**, branch `main`
+- 99 file, `git status` sạch, đồng bộ đủ với origin/main
+- **Không có `.env`/`.env.test` bị lọt** (đã kiểm tra `git ls-files`)
+- **Không có `node_modules`** bị commit
+- Đã cập nhật `CLAUDE.md` + `PROJECT_INFO_FORM.md` — GitHub URL không còn
+  `[TO BE CONFIRMED]`.
+
+**Lưu ý cho phiên sau**: project giờ ĐÃ có git — các quy tắc "không
+commit/push khi chưa xác nhận" (CLAUDE.md, global) áp dụng bình thường
+từ đây, khác với phần lớn phiên trước (lúc chưa có git nên không áp
+dụng).
+
+---
+
+### 6. BẮT ĐẦU PHIÊN SAU TỪ ĐÂY
 
 1. Đọc file này (tự động, CLAUDE.md quy định).
 2. Nếu Andy đã duyệt FID-ERP-002 → scaffold `webapp/app/capture/...` +

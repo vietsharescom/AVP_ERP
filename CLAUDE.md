@@ -3,7 +3,7 @@
 
 ## IDENTITY
 Project: AVP_ERP | Owner: Andy Phan (Viet) | Maple Leaf Group
-Path: D:\AVP_ERP | GitHub: [TO BE CONFIRMED] | Stack: Next.js + TypeScript + PostgreSQL
+Path: D:\AVP_ERP | GitHub: https://github.com/vietsharescom/AVP_ERP | Stack: Next.js + TypeScript + PostgreSQL
 
 ## QUAN HỆ VỚI D:\AVP_AI
 Dự án KẾ TIẾP, greenfield — KHÔNG fork/copy code. AVP_AI (Google Sheets)

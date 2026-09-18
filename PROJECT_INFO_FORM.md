@@ -19,7 +19,7 @@ Owner:              Andy Phan (Viet)
 Organization:       Maple Leaf Group
 Project Type:       Internal Tool (giai đoạn đầu — xem ghi chú dưới về khả năng mở rộng)
 Local Path:         D:\AVP_ERP
-GitHub URL:         [TO BE CONFIRMED — AVP_AI hiện chưa có remote GitHub, xem có tạo mới không]
+GitHub URL:         https://github.com/vietsharescom/AVP_ERP (tạo mới 2026-09-18, riêng cho AVP_ERP — không dùng chung remote với AVP_AI)
 Stack:              PostgreSQL, Next.js + TypeScript (kế thừa stack đã chạy thật ở AVP_AI),
                      Gemini AI (OCR đọc PO/Traveler — [TO BE CONFIRMED model cụ thể, AVP_AI
                      đang dùng gemini-3.5-flash-lite])
