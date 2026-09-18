@@ -42,3 +42,19 @@
   (dev) và `avp_erp_test` (test — phải baseline bằng `prisma migrate
   resolve --applied` trước vì db test chưa có lịch sử migration). 28/28
   test cũ vẫn PASS, build thành công.
+
+### Added
+- feat: Trạm nhập liệu Xưởng — máy lựa + defect + rework [FID-ERP-003] —
+  `webapp/app/factory/select/page.tsx` (UI nhập tay, không qua AI/OCR),
+  `webapp/app/api/factory/select/confirm/route.ts` (ghi 1 `SELECT` + 0..n
+  `SCRAP` theo từng loại defect + 0..1 `REWORK` trong 1 transaction),
+  `webapp/app/api/factory/defect-types/route.ts` (GET 10 defect_types cho
+  dropdown). `sourceStation` cố định `"FACTORY"` ở server, không nhận từ
+  client. Traveler phải đã tồn tại (từ RECEIVE ở FID-ERP-002) — route
+  không tự tạo Traveler mới. `machineCode`/`operatorCode`/`shift` chuẩn
+  hoá TRIM+UPPER trước khi ghi, áp dụng cho cả 3 loại move. Response trả
+  `totalDefectQty` tự tính. 9 test mới
+  (`webapp/tests/integration/factory-select.test.ts`) + 28 test cũ không
+  hồi quy = **37/37 PASS**, lint sạch, build thành công. Partial Qty
+  KHÔNG cần ghi mới ở FID này — suy ra được từ so sánh `SUM(SELECT/PACK)`
+  theo `lot_no`, để dành báo cáo riêng sau (xem FID-ERP-003 §8).
