@@ -117,3 +117,46 @@
   của 1 Traveler, ghi kèm `lot_updates` (oldLotNo=null, updatedBy=
   "SYSTEM"). 14 test mới (`webapp/tests/integration/lot.test.ts`) + 55
   test cũ không hồi quy = **69/69 PASS**, lint sạch, build thành công.
+
+### Changed
+- schema: thêm 3 cột `isReturnForRework`/`reworkOfPsNo`/`reworkOfLotNo`
+  trên `travelers` (mutable) [FID-ERP-001 v1.8] + bảng MỚI `po_tracking`
+  (không append-only, `poNo`/`startDate`/`endDate`/`setBy`) [FID-ERP-001
+  v1.9] — phát sinh khi viết FID-ERP-007 + FID-ERP-008 (cùng 1 migration
+  `20260918173753_add_rework_return_and_po_tracking`, cùng phiên). Áp
+  dụng cả `avp_erp` (dev) và `avp_erp_test` (test). 69/69 test cũ vẫn
+  PASS, build thành công.
+
+### Added
+- feat: Rework/Return linkage — Traveler ĐÃ XUẤT bị Infasco trả lại toàn
+  bộ, tín hiệu Pot#="GAYLORD" [FID-ERP-007] — `webapp/lib/rework.ts`
+  (`isGaylordReturn`, `findReworkOrigin` — tra PS/Lot gốc bằng FK THẬT
+  qua `stock_moves` SHIP + `packing_slip_lines`, không best-effort text
+  match kiểu AVP_AI, `hasReturnMove`). Sửa
+  `webapp/app/api/capture/confirm/route.ts` (FID-ERP-002) — dòng
+  `potNo="GAYLORD"` (cả 2 destination) chỉ gắn cờ
+  `isReturnForRework=true` + best-effort `reworkOfPsNo`/`reworkOfLotNo`,
+  KHÔNG ghi `stock_moves` (CHECK constraint `qty>0` chặn placeholder
+  qty=0, số lượng thật chưa biết lúc đăng ký). Sửa
+  `webapp/app/api/factory/select/confirm/route.ts` (FID-ERP-003) — nếu
+  Traveler `isReturnForRework=true` và CHƯA từng có dòng `RETURN`, ghi
+  THÊM 1 dòng `RETURN` (qty = SELECT+SCRAP+REWORK cộng lại) CÙNG
+  transaction, đúng lúc lựa lại xong mới biết số lượng thật — KHÔNG hiệu
+  chỉnh dòng `SHIP` gốc (đúng pattern Odoo `stock.picking` Return, dòng
+  mới tham chiếu ngược, không sửa phiếu gốc). 10 test mới
+  (`webapp/tests/integration/rework-return.test.ts`) + 69 test cũ không
+  hồi quy = **79/79 PASS**, lint sạch, build thành công.
+- feat: Báo cáo đối chiếu PO — theo từng PO, Traveler nào xong/còn tồn
+  đọng/rework [FID-ERP-008] — `webapp/lib/reports/poProgress.ts` (SQL
+  `GROUP BY` thật qua `$queryRawUnsafe` tham số hoá, không loop JS),
+  `webapp/app/api/reports/po-progress/route.ts` (GET, đọc-only),
+  `webapp/app/api/reports/po-progress/tracking/route.ts` (POST — nhân
+  viên tự set/sửa `startDate`/`endDate` theo dõi PO, KHÔNG OCR/không tự
+  suy đoán vì PO Infasco không ghi hạn tường minh), `webapp/app/reports/po-progress/page.tsx`
+  (UI). `completed` xác định qua `stock_moves.moveType='SHIP'` (sổ cái),
+  không phải cột cache. `reworkTravelers` lọc theo `isReturnForRework`,
+  TUYỆT ĐỐI KHÔNG theo `reworkOfPsNo` có giá trị hay không (bài học giữ
+  từ AVP_AI, tránh bỏ sót ca rework chưa tra ra được PS gốc). `isOverdue`
+  chỉ true khi có `endDate` + đã qua hạn + còn `outstanding>0`. 9 test mới
+  (`webapp/tests/integration/po-progress.test.ts`) + 79 test cũ không hồi
+  quy = **88/88 PASS**, lint sạch, build thành công.

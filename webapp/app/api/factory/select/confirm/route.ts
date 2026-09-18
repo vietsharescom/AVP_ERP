@@ -1,9 +1,15 @@
 // FID-ERP-003 §4b — ghi Postgres: 1 SELECT + 0..n SCRAP + 0..1 REWORK
 // trong 1 transaction. Nhập tay thuần tại Xưởng, KHÔNG qua AI/OCR — không
 // có bước "draft" như FID-ERP-002 (CCP-1 không áp dụng ở đây).
+// FID-ERP-007 §4b — nếu Traveler đang isReturnForRework=true VÀ CHƯA
+// từng có dòng RETURN nào, ghi THÊM 1 dòng RETURN (qty = tổng
+// SELECT+SCRAP+REWORK, đúng số lượng thật quay lại xử lý) CÙNG
+// transaction — đúng lúc lựa lại xong mới biết số lượng thật (xem
+// docs/features/FID-ERP-007_20260918.md §2c).
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../../lib/prisma";
 import { generateLotPlaceholder } from "../../../../../lib/lot";
+import { hasReturnMove } from "../../../../../lib/rework";
 
 type DefectInput = { reasonCode?: unknown; qty?: unknown };
 type ReworkInput = { qty?: unknown; note?: unknown };
@@ -101,8 +107,32 @@ export async function POST(req: NextRequest) {
   const normShift = normalize(shift);
   const deviceIdValue = typeof deviceId === "string" ? deviceId : null;
 
+  const totalDefectQty = defectRows.reduce((sum, d) => sum + (d.qty as number), 0);
+
+  // FID-ERP-007 §4b — chỉ ghi RETURN ĐÚNG 1 LẦN cho mỗi đợt rework (lần
+  // lựa lại ĐẦU TIÊN sau khi trả về). Lần lựa thứ 2+ của cùng đợt (đã có
+  // RETURN rồi) — không ghi thêm.
+  const needsReturnMove = traveler.isReturnForRework && !(await hasReturnMove(travelerNo));
+  const returnQty = selectQty + totalDefectQty + (reworkRow?.qty ?? 0);
+
   try {
     const ops = [
+      ...(needsReturnMove
+        ? [
+            prisma.stockMove.create({
+              data: {
+                travelerNo,
+                moveType: "RETURN",
+                qty: returnQty,
+                machineCode: normMachine,
+                operatorCode: normOperator,
+                shift: normShift,
+                sourceStation: "FACTORY",
+                deviceId: deviceIdValue,
+              },
+            }),
+          ]
+        : []),
       prisma.stockMove.create({
         data: {
           travelerNo,
@@ -150,11 +180,11 @@ export async function POST(req: NextRequest) {
     ];
 
     const results = await prisma.$transaction(ops);
-    const selectMove = results[0];
-    const scrapMoves = results.slice(1, 1 + defectRows.length);
-    const reworkMove = reworkRow ? results[1 + defectRows.length] : null;
-
-    const totalDefectQty = defectRows.reduce((sum, d) => sum + (d.qty as number), 0);
+    const offset = needsReturnMove ? 1 : 0;
+    const returnMove = needsReturnMove ? results[0] : null;
+    const selectMove = results[offset];
+    const scrapMoves = results.slice(offset + 1, offset + 1 + defectRows.length);
+    const reworkMove = reworkRow ? results[offset + 1 + defectRows.length] : null;
 
     // FID-ERP-006 §4a — tự sinh Lot placeholder lần lựa ĐẦU TIÊN (Traveler
     // chưa có lotNo). Transaction RIÊNG (khác kiểu Model nên tách khỏi ops
@@ -177,6 +207,7 @@ export async function POST(req: NextRequest) {
       scrapMoveIds: scrapMoves.map((m) => m.id),
       totalDefectQty,
       ...(reworkMove ? { reworkMoveId: reworkMove.id } : {}),
+      ...(returnMove ? { returnMoveId: returnMove.id } : {}),
     });
   } catch (err) {
     console.error(err);

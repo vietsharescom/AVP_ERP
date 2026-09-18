@@ -68,6 +68,14 @@ model Traveler {
   lotConcessionReason String?   @map("lot_concession_reason")
   lotConcessionAt     DateTime? @map("lot_concession_at")
 
+  // v1.8 (FID-ERP-001) — Rework/Return linkage (FID-ERP-007). MUTABLE
+  // (cờ định danh, không phải sổ cái — giống lotConcession*). Số lượng
+  // thật quay lại xử lý ghi ở stock_moves (moveType=RETURN, đúng lúc lựa
+  // lại xong ở FID-ERP-003), KHÔNG ghi ở đây.
+  isReturnForRework Boolean @default(false) @map("is_return_for_rework")
+  reworkOfPsNo      String? @map("rework_of_ps_no") // best-effort, tra qua FK thật — có thể NULL
+  reworkOfLotNo     String? @map("rework_of_lot_no") // best-effort, tra qua FK thật — có thể NULL
+
   part          PartControl       @relation(fields: [partNo], references: [partNo])
   lot           Lot?              @relation(fields: [lotNo], references: [lotNo])
   moves         StockMove[]
@@ -197,4 +205,20 @@ model PrintLog {
   traveler Traveler @relation(fields: [travelerNo], references: [travelerNo])
 
   @@map("print_log")
+}
+
+// v1.9 (FID-ERP-001) — FID-ERP-008 (Báo cáo đối chiếu PO). PO Infasco
+// KHÔNG ghi hạn tường minh — startDate/endDate do NHÂN VIÊN tự set (không
+// OCR/không tự suy đoán ở server). Không dùng chung travelers (N Traveler
+// cùng 1 poNo sẽ trùng lặp/dễ lệch) — bảng riêng, KHÔNG append-only (dữ
+// liệu kế hoạch, sửa lại bình thường), KHÔNG FK bắt buộc tới travelers
+// (nhân viên có thể set ngày trước khi có Traveler nào đăng ký).
+model PoTracking {
+  poNo      String    @id @map("po_no")
+  startDate DateTime? @map("start_date")
+  endDate   DateTime? @map("end_date")
+  setBy     String?   @map("set_by")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("po_tracking")
 }

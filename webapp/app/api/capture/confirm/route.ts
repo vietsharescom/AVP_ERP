@@ -1,7 +1,12 @@
 // FID-ERP-002 §4b — Ghi Postgres SAU KHI người xác nhận (CCP-1). 2 nhánh
 // theo destination — xem docs/features/FID-ERP-002_20260918.md §4b/§5.
+// FID-ERP-007 §4a — khi potNo khớp GAYLORD (Traveler trả lại rework), CẢ
+// 2 destination chỉ gắn cờ isReturnForRework + best-effort reworkOfPsNo/
+// reworkOfLotNo, KHÔNG ghi stock_moves nào (số lượng thật ghi ở
+// FID-ERP-003 lúc lựa lại xong — xem docs/features/FID-ERP-007_20260918.md §4b).
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
+import { isGaylordReturn, findReworkOrigin } from "../../../../lib/rework";
 
 type CaptureDestination = "po" | "warehouse";
 
@@ -20,6 +25,8 @@ type ConfirmBody = {
   sourceStation?: unknown;
   deviceId?: unknown;
 };
+
+type ReturnForReworkEntry = { travelerNo: string; reworkOfPsNo: string | null; reworkOfLotNo: string | null };
 
 const ALLOWED_DESTINATIONS = new Set<CaptureDestination>(["po", "warehouse"]);
 // Xưởng không có cổng AI (chốt 2026-09-17) — chặn ở tầng API, không chỉ ẩn ở UI.
@@ -64,6 +71,9 @@ export async function POST(req: NextRequest) {
       return badRequest("sourceStation phải là 'OFFICE' hoặc 'ADMIN' — Xưởng không có cổng này.");
     }
     for (const row of typedRows) {
+      // FID-ERP-007 §5 — dòng GAYLORD KHÔNG cần qty (bỏ qua dù có gửi),
+      // số lượng thật chưa biết lúc này, chỉ ghi ở FID-ERP-003.
+      if (isGaylordReturn(typeof row.potNo === "string" ? row.potNo : null)) continue;
       if (typeof row.qty !== "number" || !Number.isInteger(row.qty) || row.qty <= 0) {
         return badRequest(`qty phải > 0 (traveler ${String(row.travelerNo)}).`);
       }
@@ -73,29 +83,64 @@ export async function POST(req: NextRequest) {
   try {
     if (destination === "po") {
       let saved = 0;
+      const returnForRework: ReturnForReworkEntry[] = [];
       for (const row of typedRows) {
         const travelerNo = row.travelerNo as string;
         const partNo = row.partNo as string;
         const poNo = typeof row.poNo === "string" ? row.poNo : null;
-        await prisma.traveler.upsert({
-          where: { travelerNo },
-          update: { poNo },
-          create: { travelerNo, partNo, poNo },
-        });
+        const potNo = typeof row.potNo === "string" ? row.potNo : null;
+
+        if (isGaylordReturn(potNo)) {
+          const origin = await findReworkOrigin(travelerNo);
+          await prisma.traveler.upsert({
+            where: { travelerNo },
+            update: { poNo, potNo, isReturnForRework: true, ...origin },
+            create: { travelerNo, partNo, poNo, potNo, isReturnForRework: true, ...origin },
+          });
+          returnForRework.push({ travelerNo, ...origin });
+        } else {
+          await prisma.traveler.upsert({
+            where: { travelerNo },
+            update: { poNo },
+            create: { travelerNo, partNo, poNo },
+          });
+        }
         saved += 1;
       }
-      return NextResponse.json({ ok: true, saved, skippedDuplicates: [], moveIds: [] });
+      return NextResponse.json({
+        ok: true,
+        saved,
+        skippedDuplicates: [],
+        moveIds: [],
+        ...(returnForRework.length > 0 ? { returnForRework } : {}),
+      });
     }
 
     // destination === "warehouse"
     const skippedDuplicates: string[] = [];
     const moveIds: number[] = [];
+    const returnForRework: ReturnForReworkEntry[] = [];
     let saved = 0;
 
     for (const row of typedRows) {
       const travelerNo = row.travelerNo as string;
       const partNo = row.partNo as string;
       const potNo = typeof row.potNo === "string" ? row.potNo : null;
+
+      if (isGaylordReturn(potNo)) {
+        // FID-ERP-007 §4a/§5 — chỉ gắn cờ, KHÔNG ghi stock_moves (kể cả
+        // có gửi qty) — số lượng thật ghi ở FID-ERP-003 lúc lựa lại xong.
+        const origin = await findReworkOrigin(travelerNo);
+        await prisma.traveler.upsert({
+          where: { travelerNo },
+          update: { potNo, isReturnForRework: true, ...origin },
+          create: { travelerNo, partNo, potNo, isReturnForRework: true, ...origin },
+        });
+        returnForRework.push({ travelerNo, ...origin });
+        saved += 1;
+        continue;
+      }
+
       const qty = row.qty as number;
 
       // Trùng lặp phải CẢNH BÁO, không tự động bỏ qua/ghi đè (§5 RULES) —
@@ -129,7 +174,13 @@ export async function POST(req: NextRequest) {
       saved += 1;
     }
 
-    return NextResponse.json({ ok: true, saved, skippedDuplicates, moveIds });
+    return NextResponse.json({
+      ok: true,
+      saved,
+      skippedDuplicates,
+      moveIds,
+      ...(returnForRework.length > 0 ? { returnForRework } : {}),
+    });
   } catch (err) {
     console.error(err);
     return NextResponse.json(
