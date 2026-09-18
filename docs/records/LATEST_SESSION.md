@@ -11,7 +11,7 @@
 | Session | SES-20260917-001 đến SES-20260918-002 |
 | Chủ dự án | Andy Phan (Viet), Maple Leaf Group |
 | Git | Vẫn CHƯA init (Andy chọn "không cần" khi được hỏi 2026-09-17) |
-| Trạng thái | **FID-ERP-001 (v1.6) + 002 + 003 + 004 + 005 DONE — code thật, 55/55 test PASS.** 7 FID còn lại CHƯA VIẾT. `webapp/` (Next.js+Prisma+PostgreSQL) đã tồn tại và chạy được. |
+| Trạng thái | **FID-ERP-001 (v1.7) + 002→006 DONE — code thật, 69/69 test PASS.** 6 FID còn lại CHƯA VIẾT. `webapp/` (Next.js+Prisma+PostgreSQL) đã tồn tại và chạy được. |
 
 ---
 
@@ -166,6 +166,30 @@ code:
   (`DAMAGED FLANGE`, `DAMAGED LOCKING`) không khớp 10 giá trị hiện có —
   để dành, cần Andy xác nhận riêng.
 
+**F5. FID-ERP-006 — Lot placeholder + parse email Lot thật — DUYỆT +
+CODE THẬT** (2026-09-18): Andy hỏi cách xử lý khi Lot thật về (ghi đè
+hay giữ lịch sử) → xác nhận muốn "không sửa đè, ghi audit trail đầy
+đủ" → **sửa FID-ERP-001 lên v1.7**: thêm bảng `lot_updates` (append-only,
+trigger riêng) + 3 cột `lotConcessionBy/Reason/At` MUTABLE trên
+`travelers` (giống `poNo`/`potNo`) — migration
+`20260918025603_add_lot_updates_and_concession` áp dụng cả 2 DB. Viết
+DRAFT `docs/features/FID-ERP-006_20260918.md`, Andy duyệt ("ok") → code:
+- `webapp/lib/lot.ts` — `isLotPlaceholder`/`generateLotPlaceholder`/
+  `parseLotEmail` (regex bắt CẶP Lot#+Traveler#, KHÔNG AI — đúng nguyên
+  tắc "1 điểm AI duy nhất" cả dự án, tham khảo AVP_AI §5.4 đã chạy thật)
+- `webapp/app/api/lot/{parse-email,update,concession}/route.ts` +
+  `webapp/app/lot/update/page.tsx`
+- **Sửa FID-ERP-003 confirm route** (đã DONE trước đó) — thêm bước tự
+  sinh Lot placeholder (`LOT-{travelerNo}-{YYMMDD}`) lần lựa ĐẦU TIÊN
+  của 1 Traveler, transaction riêng ngay sau SELECT/SCRAP/REWORK
+- 14 test mới (`webapp/tests/integration/lot.test.ts`) + 55 test cũ
+  không hồi quy = **69/69 PASS**, lint sạch, build thành công
+- Lệch nhỏ: gộp Lot-placeholder ops chung 1 `$transaction` với SELECT/
+  SCRAP/REWORK làm TypeScript suy ra type UNION (mất `.id`) — tách 2
+  `$transaction` kế tiếp nhau, không ảnh hưởng đúng đắn nghiệp vụ.
+  `isLotPlaceholder` dùng `.+` thay `\d+` cho travelerNo (String tự do,
+  không ép numeric).
+
 **G. ODOO_COMPARISON.md** (2026-09-18): tài liệu đối chiếu kiến trúc
 chính thức — 9 khía cạnh AVP_ERP khác Odoo chuẩn, mỗi điểm kèm bằng chứng
 dữ liệu thật hoặc quyết định đã có. Phát hiện: ý tưởng "1 sổ cái" này đã
@@ -250,10 +274,12 @@ dụng).
    `layout.tsx`), gõ Traveler#/Part#/PO#/Pot#/Lot#/PS# để thử.
 5. FID-ERP-005 đã DONE — dùng UI `/wrapping/check` để thử Good/Hold +
    reject (cần 1 Traveler đã tồn tại trước, vì route không tự tạo mới).
-6. FID-ERP-006 (Lot placeholder + parse email Lot thật) là bước tiếp
-   theo hợp lý theo `FID_LIST.md` — cần viết FID trước (Status APPROVED)
-   rồi mới code, đúng quy trình.
-7. Việc khác theo Mục 4 trên, ưu tiên theo thứ tự Andy chọn.
+6. FID-ERP-006 đã DONE — dùng UI `/lot/update` để thử dán email + tách
+   cặp Traveler#+Lot#; placeholder tự sinh khi qua `/factory/select`.
+7. FID-ERP-007 (Rework/Return linkage, Pot#=GAYLORD) là bước tiếp theo
+   hợp lý theo `FID_LIST.md` — cần viết FID trước (Status APPROVED) rồi
+   mới code, đúng quy trình.
+8. Việc khác theo Mục 4 trên, ưu tiên theo thứ tự Andy chọn.
 
 ---
 

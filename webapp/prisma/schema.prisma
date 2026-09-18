@@ -60,12 +60,21 @@ model Traveler {
   createdAt  DateTime @default(now()) @map("created_at")
   // KHÔNG có qcStatus cache — trạng thái tính qua VIEW traveler_last_select_status hoặc query stock_moves
 
+  // v1.7 (FID-ERP-001) — cờ Concession khi xuất với Lot còn placeholder
+  // (FID-ERP-006). MUTABLE (giống poNo/potNo/lotNo — chỉ là thông tin
+  // định danh, không phải sổ cái số lượng/trạng thái), KHÔNG cần
+  // append-only riêng — khác lịch sử ĐỔI Lot (xem LotUpdate, append-only).
+  lotConcessionBy     String?   @map("lot_concession_by")
+  lotConcessionReason String?   @map("lot_concession_reason")
+  lotConcessionAt     DateTime? @map("lot_concession_at")
+
   part          PartControl       @relation(fields: [partNo], references: [partNo])
   lot           Lot?              @relation(fields: [lotNo], references: [lotNo])
   moves         StockMove[]
   packingLines  PackingSlipLine[]
   printLogs     PrintLog[]
   qualityChecks QualityCheck[]
+  lotUpdates    LotUpdate[]
 
   @@map("travelers")
 }
@@ -155,6 +164,27 @@ model QualityCheck {
 
   @@index([travelerNo, createdAt])
   @@map("quality_checks")
+}
+
+/// SỔ CÁI BẤT BIẾN — append-only, KHÔNG UPDATE/DELETE (v1.7, FID-ERP-001).
+/// Lịch sử ĐỔI Lot (placeholder → thật, hoặc thật → thật khác nếu
+/// Infasco sửa) — Andy xác nhận 2026-09-18: "không sửa đè, ghi audit
+/// trail đầy đủ", KHÁC AVP_AI (chỉ ghi lotUpdatedBy/At đè lên dòng cũ,
+/// không giữ oldLotNo). `travelers.lotNo` VẪN bị UPDATE (mutable, đọc
+/// nhanh — giống poNo/potNo), bảng này chỉ là log riêng, không thay thế.
+model LotUpdate {
+  id         Int      @id @default(autoincrement())
+  travelerNo String   @map("traveler_no")
+  oldLotNo   String?  @map("old_lot_no")
+  newLotNo   String   @map("new_lot_no")
+  updatedBy  String   @map("updated_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  // KHÔNG có updatedAt — bảng bất biến
+
+  traveler Traveler @relation(fields: [travelerNo], references: [travelerNo])
+
+  @@index([travelerNo, createdAt])
+  @@map("lot_updates")
 }
 
 model PrintLog {

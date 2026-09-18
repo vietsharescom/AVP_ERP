@@ -3,6 +3,7 @@
 // có bước "draft" như FID-ERP-002 (CCP-1 không áp dụng ở đây).
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../../lib/prisma";
+import { generateLotPlaceholder } from "../../../../../lib/lot";
 
 type DefectInput = { reasonCode?: unknown; qty?: unknown };
 type ReworkInput = { qty?: unknown; note?: unknown };
@@ -151,9 +152,24 @@ export async function POST(req: NextRequest) {
     const results = await prisma.$transaction(ops);
     const selectMove = results[0];
     const scrapMoves = results.slice(1, 1 + defectRows.length);
-    const reworkMove = reworkRow ? results[results.length - 1] : null;
+    const reworkMove = reworkRow ? results[1 + defectRows.length] : null;
 
     const totalDefectQty = defectRows.reduce((sum, d) => sum + (d.qty as number), 0);
+
+    // FID-ERP-006 §4a — tự sinh Lot placeholder lần lựa ĐẦU TIÊN (Traveler
+    // chưa có lotNo). Transaction RIÊNG (khác kiểu Model nên tách khỏi ops
+    // trên để giữ type rõ ràng) — KHÔNG tự sinh lại nếu đã có lotNo
+    // (placeholder hay thật) từ trước.
+    if (traveler.lotNo == null) {
+      const placeholder = generateLotPlaceholder(travelerNo);
+      await prisma.$transaction([
+        prisma.lot.upsert({ where: { lotNo: placeholder }, update: {}, create: { lotNo: placeholder } }),
+        prisma.traveler.update({ where: { travelerNo }, data: { lotNo: placeholder } }),
+        prisma.lotUpdate.create({
+          data: { travelerNo, oldLotNo: null, newLotNo: placeholder, updatedBy: "SYSTEM" },
+        }),
+      ]);
+    }
 
     return NextResponse.json({
       ok: true,

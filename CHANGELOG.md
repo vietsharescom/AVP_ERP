@@ -93,3 +93,27 @@
   để dành, cần Andy xác nhận riêng. 11 test mới
   (`webapp/tests/integration/quality-check.test.ts`) + 44 test cũ không
   hồi quy = **55/55 PASS**, lint sạch, build thành công.
+
+### Changed
+- schema: thêm bảng `lot_updates` (append-only, trigger riêng
+  `prevent_lot_updates_mutation`) + 3 cột `lotConcessionBy`/
+  `lotConcessionReason`/`lotConcessionAt` trên `travelers` (mutable,
+  giống `poNo`/`potNo`) [FID-ERP-001 v1.7] — phát sinh khi viết
+  FID-ERP-006. Andy xác nhận "không sửa đè, ghi audit trail đầy đủ" khi
+  đổi Lot — khác AVP_AI (chỉ ghi đè `lotUpdatedBy/At`, mất `oldLotNo`).
+  Migration `20260918025603_add_lot_updates_and_concession` áp dụng cho
+  cả `avp_erp` (dev) và `avp_erp_test` (test). 55/55 test cũ vẫn PASS.
+
+### Added
+- feat: Lot placeholder + parse email Lot thật [FID-ERP-006] —
+  `webapp/lib/lot.ts` (`isLotPlaceholder`, `generateLotPlaceholder`,
+  `parseLotEmail` — regex bắt CẶP Traveler#+Lot#, KHÔNG AI, đúng nguyên
+  tắc "1 điểm AI duy nhất" cả dự án), `webapp/app/api/lot/parse-email/route.ts`
+  (chỉ đọc), `webapp/app/api/lot/update/route.ts` (ghi 1 dòng
+  `lot_updates` + đổi `travelers.lotNo` trong 1 transaction),
+  `webapp/app/api/lot/concession/route.ts`, `webapp/app/lot/update/page.tsx`.
+  Sửa `webapp/app/api/factory/select/confirm/route.ts` (FID-ERP-003) —
+  tự sinh Lot placeholder (`LOT-{travelerNo}-{YYMMDD}`) lần lựa ĐẦU TIÊN
+  của 1 Traveler, ghi kèm `lot_updates` (oldLotNo=null, updatedBy=
+  "SYSTEM"). 14 test mới (`webapp/tests/integration/lot.test.ts`) + 55
+  test cũ không hồi quy = **69/69 PASS**, lint sạch, build thành công.
