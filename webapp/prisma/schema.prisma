@@ -1,0 +1,137 @@
+// AVP_ERP — schema nền tảng
+// Nguồn: docs/features/FID-ERP-001_20260917.md (v1.4, APPROVED 2026-09-17)
+// KHÔNG sửa file này mà không cập nhật FID-ERP-001 tương ứng.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MoveType {
+  RECEIVE
+  SELECT
+  PACK
+  SHIP
+  SCRAP
+  RETURN
+}
+
+model Lot {
+  lotNo       String   @id @map("lot_no") // vd "6-251-15-A"
+  parentLotNo String?  @map("parent_lot_no") // hỗ trợ split lot (vd "6-251-15" -> "6-251-15-A")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  parentLot Lot?       @relation("LotSplit", fields: [parentLotNo], references: [lotNo])
+  childLots Lot[]      @relation("LotSplit")
+  travelers Traveler[]
+
+  @@index([parentLotNo])
+  @@map("lots")
+}
+
+model DefectType {
+  code  String @id // vd "LOOSE_WASHER_NUT"
+  label String @unique // vd "Loose Washer Nut" — 10 giá trị thật, xem FID-ERP-001 §5
+
+  stockMoves StockMove[]
+
+  @@map("defect_types")
+}
+
+model Traveler {
+  travelerNo String   @id @map("traveler_no")
+  partNo     String   @map("part_no")
+  poNo       String?  @map("po_no") // 1 PO có thể trải trên NHIỀU Traveler
+  potNo      String?  @map("pot_no") // GAYLORD — link Rework/Return, FID-ERP-007
+  lotNo      String?  @map("lot_no") // 1 Traveler = 1 Lot (xác nhận bằng dữ liệu thật, xem FID-ERP-001 v1.3)
+  createdAt  DateTime @default(now()) @map("created_at")
+  // KHÔNG có qcStatus cache — trạng thái tính qua VIEW traveler_last_select_status hoặc query stock_moves
+
+  part         PartControl       @relation(fields: [partNo], references: [partNo])
+  lot          Lot?              @relation(fields: [lotNo], references: [lotNo])
+  moves        StockMove[]
+  packingLines PackingSlipLine[]
+  printLogs    PrintLog[]
+
+  @@map("travelers")
+}
+
+/// SỔ CÁI BẤT BIẾN — append-only, KHÔNG UPDATE/DELETE (chặn ở tầng DB qua trigger, xem migration)
+model StockMove {
+  id            Int       @id @default(autoincrement())
+  travelerNo    String    @map("traveler_no")
+  moveType      MoveType  @map("move_type")
+  qty           Int // LUÔN DƯƠNG — ý nghĩa +/- suy từ moveType (xem FID-ERP-001 §5)
+  machineCode   String?   @map("machine_code") // NOT NULL khi SELECT/PACK — chuẩn hoá TRIM+UPPER khi ghi
+  operatorCode  String?   @map("operator_code") // NOT NULL khi SELECT/PACK
+  shift         String? // NOT NULL khi SELECT/PACK
+  reasonCode    String?   @map("reason_code") // FK -> defect_types; NOT NULL khi SCRAP
+  potNo         String?   @map("pot_no") // dùng khi RETURN, link GAYLORD
+  sourceStation String?   @map("source_station") // "OFFICE" | "FACTORY" | "ADMIN"
+  deviceId      String?   @map("device_id") // vd "OFFICE-PC-01"
+  createdAt     DateTime  @default(now()) @map("created_at")
+  // KHÔNG có updatedAt — bảng bất biến
+
+  traveler   Traveler    @relation(fields: [travelerNo], references: [travelerNo])
+  defectType DefectType? @relation(fields: [reasonCode], references: [code])
+
+  @@index([travelerNo])
+  @@index([moveType, createdAt])
+  @@index([machineCode, createdAt])
+  @@index([createdAt])
+  @@map("stock_moves")
+}
+
+model PartControl {
+  partNo    String @id @map("part_no")
+  qtyPerBox Int    @map("qty_per_box")
+  client    String // vd "Infasco"
+
+  travelers Traveler[]
+
+  @@map("part_control")
+}
+
+model PackingSlip {
+  id           Int      @id @default(autoincrement())
+  psNo         String   @unique @map("ps_no")
+  totalPallets Int      @default(0) @map("total_pallets")
+  totalEmpty   Int      @default(0) @map("total_empty")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  lines PackingSlipLine[]
+
+  @@map("packing_slips")
+}
+
+/// Snapshot tại thời điểm tạo PS — chứng từ xuất hàng thật, không đổi theo Traveler sau này
+model PackingSlipLine {
+  id            Int    @id @default(autoincrement())
+  packingSlipId Int    @map("packing_slip_id")
+  travelerNo    String @map("traveler_no") // vẫn giữ FK để trace ngược tới Traveler thật
+  qty           Int
+  partNoSnap    String  @map("part_no_snap")
+  lotNoSnap     String? @map("lot_no_snap")
+  potNoSnap     String? @map("pot_no_snap")
+
+  packingSlip PackingSlip @relation(fields: [packingSlipId], references: [id])
+  traveler    Traveler    @relation(fields: [travelerNo], references: [travelerNo])
+
+  @@map("packing_slip_lines")
+}
+
+model PrintLog {
+  id         Int      @id @default(autoincrement())
+  travelerNo String   @map("traveler_no")
+  partNo     String   @map("part_no")
+  printedBy  String   @map("printed_by") // operator_code
+  printedAt  DateTime @default(now()) @map("printed_at")
+
+  traveler Traveler @relation(fields: [travelerNo], references: [travelerNo])
+
+  @@map("print_log")
+}

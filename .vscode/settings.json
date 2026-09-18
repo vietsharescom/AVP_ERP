@@ -1,0 +1,5 @@
+{
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "files.autoSave": "afterDelay",
+    "typescript.tsdk": "webapp/node_modules/typescript/lib"
+}

@@ -1,0 +1,16 @@
+# Node / Next.js (webapp/ — created when FID-ERP-001 starts)
+node_modules/
+.next/
+out/
+build/
+.env
+.env.local
+.env*.local
+*.tsbuildinfo
+npm-debug.log*
+
+# Session logs -- cac phien cu khong can push
+docs/records/*.md
+!docs/records/.gitkeep
+# NGOAI LE: LATEST_SESSION.md PHAI push de dong bo Desktop <-> Laptop
+!docs/records/LATEST_SESSION.md
