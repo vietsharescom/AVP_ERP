@@ -11,7 +11,7 @@
 | Session | SES-20260917-001 đến SES-20260918-002 |
 | Chủ dự án | Andy Phan (Viet), Maple Leaf Group |
 | Git | Vẫn CHƯA init (Andy chọn "không cần" khi được hỏi 2026-09-17) |
-| Trạng thái | **FID-ERP-001 DONE — code thật, 15/15 test PASS.** FID-ERP-002 DRAFT (chờ duyệt). 11 FID còn lại CHƯA VIẾT. `webapp/` (Next.js+Prisma+PostgreSQL) đã tồn tại và chạy được. |
+| Trạng thái | **FID-ERP-001 DONE + FID-ERP-002 DONE — code thật, 28/28 test PASS.** 11 FID còn lại CHƯA VIẾT. `webapp/` (Next.js+Prisma+PostgreSQL) đã tồn tại và chạy được. |
 
 ---
 
@@ -68,11 +68,23 @@ Station.xlsx` đã có report tương tự từ AVP_AI).
 - `webapp/tests/db/fid-erp-001.test.ts` — **15/15 PASS**, `npm run lint`
   sạch, `npm run build` thành công
 
-**F. FID-ERP-002 — CaptureGate tương đương** (2026-09-18): đọc THAM KHẢO
-`D:\AVP_AI\webapp\src\components\CaptureGate.tsx`+`TravelerSection.tsx`
-để hiểu đúng trước khi viết (không đoán). 2 đích đến: "PO tham khảo"
-(chỉ đăng ký Traveler, KHÔNG ghi `stock_moves`) và "Kho nguyên liệu" (ghi
-`RECEIVE` thật). Viết DRAFT đầy đủ 9 mục, **chưa duyệt**.
+**F. FID-ERP-002 — CaptureGate tương đương — DUYỆT + CODE THẬT** (2026-09-18):
+đọc THAM KHẢO `D:\AVP_AI\webapp\src\components\CaptureGate.tsx`+
+`TravelerSection.tsx`+`src\lib\extract.ts` (cùng SDK `@google/genai`) để
+hiểu đúng trước khi viết. Andy duyệt ("f2 ok") → code:
+- `webapp/lib/ocr/gemini.ts` — OCR Gemini, CHỈ đọc, không ghi DB
+- `webapp/app/api/capture/extract/route.ts` — trả draft, không ghi DB
+- `webapp/app/api/capture/confirm/route.ts` — ghi Postgres sau xác nhận,
+  2 nhánh theo destination (`po` chỉ upsert `travelers`; `warehouse` upsert
+  `travelers` + ghi 1 dòng `stock_moves` RECEIVE trong 1 transaction)
+- `webapp/app/capture/page.tsx` — UI chọn đích đến + xem/sửa draft trước lưu
+- 13 test mới (`webapp/tests/integration/capture.test.ts`) + 15 test
+  FID-ERP-001 không hồi quy = **28/28 PASS**, lint sạch, build thành công
+- Cài `@google/genai` (đúng bản AVP_AI dùng). `GEMINI_API_KEY` **CHƯA có
+  key thật** — để `[TO BE CONFIRMED]` trong `webapp/.env`, test dùng mock.
+- **Excel (.xlsx/.xlsm) CHƯA làm** — chỉ ảnh/PDF (Gemini vision không đọc
+  Excel trực tiếp) — quyết định phạm vi tự đưa ra lúc code, chưa hỏi Andy
+  riêng, để dành FID sau nếu cần.
 
 **G. ODOO_COMPARISON.md** (2026-09-18): tài liệu đối chiếu kiến trúc
 chính thức — 9 khía cạnh AVP_ERP khác Odoo chuẩn, mỗi điểm kèm bằng chứng
@@ -105,14 +117,19 @@ dữ liệu thật hoặc quyết định đã có. Phát hiện: ý tưởng "1
 
 ### 4. VIỆC ĐANG MỞ — hỏi Owner trước khi tự suy diễn
 
-1. **FID-ERP-002 chưa duyệt** — Andy đọc `docs/features/FID-ERP-002_20260918.md`, gõ APPROVED nếu OK để code tiếp.
-2. **Checklist hạ tầng** (`FACILITIES_SETUP.md` §5) — khoảng cách Office↔Xưởng (quyết định Cat6/WiFi), ai quản trị máy chủ.
-3. **Danh sách đầy đủ mã máy lựa + tên các ca** (ngoài "Mrnng" đã thấy) — không chặn code (TEXT tự do) nhưng cần trước UI FID-ERP-003.
-4. **Backup**: ngân sách/thiết bị cụ thể + RPO/RTO chính thức — Andy chọn "để sau", có kế hoạch mặc định trong `RISK_REGISTER.md` R-D01.
-5. **FID-ERP-005** (Status Good/Hold): cần `move_type` riêng cho đổi trạng thái SAU khi đã qua SELECT, hay dùng lại SELECT? — quyết khi viết FID đó.
-6. **Budget, timeline, team cụ thể** (bao nhiêu người Office/Xưởng, tên người giữ vai Giám đốc/Quản lý Máy 4) — `[TO BE CONFIRMED]`. ~~GitHub URL~~ ĐÃ XONG — xem Mục 6.
-7. **File `D:\AVP_ERP\.env`** (root, ngoài `webapp/`) còn password superuser `postgres` Andy dán tạm 2026-09-17 — đã dùng xong, có thể xoá (Andy tự quyết, không tự xoá).
-8. **`LOCATION = 'F'`** trong dữ liệu thật viết tắt của gì — không ảnh hưởng thiết kế, chỉ để biết.
+1. **`GEMINI_API_KEY` thật** — `webapp/.env` đang để trống, `/capture` không
+   gọi OCR thật được cho tới khi Andy dán key vào (model cụ thể cũng
+   `[TO BE CONFIRMED]`, tạm dùng `gemini-3.5-flash-lite` như AVP_AI).
+2. **Excel input cho FID-ERP-002** — quyết định tạm hoãn (Gemini vision
+   không đọc trực tiếp .xlsx/.xlsm), chỉ làm ảnh/PDF trước. Andy xác nhận
+   có cần làm tiếp không, hay để dành khi có nhu cầu thật.
+3. **Checklist hạ tầng** (`FACILITIES_SETUP.md` §5) — khoảng cách Office↔Xưởng (quyết định Cat6/WiFi), ai quản trị máy chủ.
+4. **Danh sách đầy đủ mã máy lựa + tên các ca** (ngoài "Mrnng" đã thấy) — không chặn code (TEXT tự do) nhưng cần trước UI FID-ERP-003.
+5. **Backup**: ngân sách/thiết bị cụ thể + RPO/RTO chính thức — Andy chọn "để sau", có kế hoạch mặc định trong `RISK_REGISTER.md` R-D01.
+6. **FID-ERP-005** (Status Good/Hold): cần `move_type` riêng cho đổi trạng thái SAU khi đã qua SELECT, hay dùng lại SELECT? — quyết khi viết FID đó.
+7. **Budget, timeline, team cụ thể** (bao nhiêu người Office/Xưởng, tên người giữ vai Giám đốc/Quản lý Máy 4) — `[TO BE CONFIRMED]`.
+8. **File `D:\AVP_ERP\.env`** (root, ngoài `webapp/`) còn password superuser `postgres` Andy dán tạm 2026-09-17 — đã dùng xong, có thể xoá (Andy tự quyết, không tự xoá).
+9. **`LOCATION = 'F'`** trong dữ liệu thật viết tắt của gì — không ảnh hưởng thiết kế, chỉ để biết.
 
 ---
 
@@ -139,14 +156,14 @@ dụng).
 ### 6. BẮT ĐẦU PHIÊN SAU TỪ ĐÂY
 
 1. Đọc file này (tự động, CLAUDE.md quy định).
-2. Nếu Andy đã duyệt FID-ERP-002 → scaffold `webapp/app/capture/...` +
-   `webapp/app/api/capture/...` theo đúng Mục 4/5 của FID, viết test,
-   chạy PASS 100%, cập nhật CHANGELOG.md.
-3. Nếu chưa duyệt → hỏi lại trước khi code (đúng nguyên tắc #1).
+2. FID-ERP-002 đã DONE — nếu Andy có `GEMINI_API_KEY` thật, dán vào
+   `webapp/.env` rồi thử `/capture` thật với file mẫu (`Data/2. Traveler/
+   TRAVELER SHEETS SEP 9.pdf`) trước khi coi là chạy được thật (test hiện
+   tại chỉ mock Gemini).
+3. FID-ERP-003 (Xưởng, nhập tay, ghi rõ `machine_code`/`operator_code`/
+   `shift`) là bước tiếp theo hợp lý theo `FID_LIST.md` — cần viết FID
+   trước (Status APPROVED) rồi mới code, đúng quy trình.
 4. Việc khác theo Mục 4 trên, ưu tiên theo thứ tự Andy chọn.
-5. Sau FID-ERP-002 → FID-ERP-003 (Xưởng, nhập tay, ghi rõ `machine_code`/
-   `operator_code`/`shift`) là bước tiếp theo hợp lý (đúng lộ trình
-   `FID_LIST.md`).
 
 ---
 
