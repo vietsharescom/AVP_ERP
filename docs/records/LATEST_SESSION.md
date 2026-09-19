@@ -10,7 +10,7 @@
 |---|---|
 | Session | SES-20260917-001 đến SES-20260919-005 |
 | Chủ dự án | Andy Phan (Viet), Maple Leaf Group |
-| Git | Đã init + push. Commit mới nhất **`d27ec8a`** (FID-ERP-009 + FID-ERP-005 v1.1). **FID-ERP-011 code xong nhưng CHƯA COMMIT** — chờ Andy xác nhận (quy tắc toàn cục). |
+| Git | Đã init + push. **Commit mới nhất `0d504bd`** (FID-ERP-011) — đã push lên `main`, working tree sạch, không còn gì chờ commit. |
 | Trạng thái | **FID-ERP-001 (v1.11) + FID-ERP-002→009+011 DONE — 124/124 test PASS, lint sạch, build sạch (không cảnh báo).** FID-ERP-010+013 CHƯA VIẾT, FID-ERP-012 DRAFT. `webapp/` (Next.js 16 + Prisma 7 + PostgreSQL 18) chạy được thật, có đăng nhập theo trạm. |
 
 ---
@@ -89,20 +89,20 @@
 
 Đã `init` + push từ 2026-09-18 (Andy tự làm qua PowerShell). Remote: **`https://github.com/vietsharescom/AVP_ERP.git`**, branch `main`. Quy tắc "không commit/push khi chưa xác nhận" (CLAUDE.md, global) áp dụng — mỗi lần commit trong phiên này đều đã hỏi Andy trước.
 
-**Đã commit + push** (2026-09-19): `d27ec8a` — FID-ERP-009 (Packing Slip)
-+ FID-ERP-005 v1.1 (PACK/Skid#).
-
-**Chưa commit**: FID-ERP-011 (Phân quyền theo trạm — `webapp/lib/auth.ts`
-+ `webapp/proxy.ts` + 2 route auth + trang `/login` + sửa
-`capture/confirm`/`packing/confirm` đọc `sourceStation` từ session) —
-code xong, 124/124 test PASS, lint sạch, build sạch (không cảnh báo),
-nhưng working tree đang CHƯA commit (chờ Andy xác nhận). **Lưu ý riêng**:
-commit này thêm 3 biến mật khẩu trạm + `SESSION_SECRET` vào
+**Đã commit + push hết** (2026-09-19), working tree sạch. **Lưu ý riêng**:
+commit `0d504bd` thêm 3 biến mật khẩu trạm + `SESSION_SECRET` vào
 `webapp/.env`/`webapp/.env.test` (2 file đã `.gitignore`, KHÔNG lên
-Git) — Andy tự đổi mật khẩu thật trước khi dùng thật (xem FID-ERP-011 §5).
+Git) — Andy tự đổi mật khẩu thật trước khi dùng thật (xem FID-ERP-011 §5,
+giá trị tạm hiện tại: `office-tam-2026`/`xuong-tam-2026`/`admin-tam-2026`).
+
+Có 1 file tạm của Excel (`Data/4.WRAPPING/~$Wrapping_final.xlsm`, sinh ra
+khi Andy mở file xem ảnh chụp WRAPPING SUMMARY) xuất hiện trong
+`git status` nhưng KHÔNG được add — không phải dữ liệu thật, Andy có thể
+tự xoá (đóng Excel lại là tự mất), Claude không tự xoá.
 
 Lịch sử commit chính phiên này (mới nhất trước):
 ```
+0d504bd feat: Phân quyền theo trạm — session/login đầu tiên [FID-ERP-011]
 d27ec8a feat: Packing Slip + sửa FID-ERP-005 thêm PACK/Skid# [FID-ERP-009][FID-ERP-005 v1.1]
 24b7ce6 feat: Rework/Return linkage (Pot#=GAYLORD) + Báo cáo đối chiếu PO [FID-ERP-007][FID-ERP-008]
 70244ae docs: viết lại báo cáo phiên + kế hoạch phiên sau
@@ -119,12 +119,6 @@ ca892fd docs: draft FID-ERP-003 v1.1 + schema v1.5 (thêm REWORK)
 ---
 
 ### 6. KẾ HOẠCH PHIÊN SAU
-
-**Ưu tiên 0 — xác nhận commit**: FID-ERP-011 đã code xong, 124/124 test
-PASS, nhưng CHƯA commit (Mục 5) — hỏi Andy xác nhận commit/push trước
-khi làm việc khác. Nhắc Andy đổi mật khẩu trạm thật trong `webapp/.env`
-(hiện đang để giá trị tạm `office-tam-2026`/`xuong-tam-2026`/
-`admin-tam-2026`) trước khi dùng thật ở Xưởng/Office.
 
 **Ưu tiên 1 — tiếp tục lộ trình FID** (đúng thứ tự phụ thuộc ở `FID_LIST.md`):
 1. **FID-ERP-012** (Báo cáo sản xuất Xưởng — DRAFT sẵn có, công thức sản
@@ -147,4 +141,4 @@ khi làm việc khác. Nhắc Andy đổi mật khẩu trạm thật trong `weba
 
 ---
 
-*Session Report — viết lại đầy đủ 2026-09-18 (gộp lịch sử chi tiết theo FID vào bảng Mục 2 — chi tiết đầy đủ từng quyết định/lệch kế hoạch nằm trong Mục 10 "THỰC HIỆN" của từng file FID tương ứng, không lặp lại ở đây để tránh trôi dạt giữa 2 nơi mô tả cùng 1 việc).*
+*Session Report — viết lại đầy đủ 2026-09-18 (gộp lịch sử chi tiết theo FID vào bảng Mục 2 — chi tiết đầy đủ từng quyết định/lệch kế hoạch nằm trong Mục 10 "THỰC HIỆN" của từng file FID tương ứng, không lặp lại ở đây để tránh trôi dạt giữa 2 nơi mô tả cùng 1 việc). Kết thúc phiên SES-20260919-005 (2026-09-19): FID-ERP-005 v1.1 + FID-ERP-007→009+011 DONE, đã commit+push hết (`0d504bd`), working tree sạch.*
