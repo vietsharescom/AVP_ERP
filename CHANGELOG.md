@@ -160,3 +160,54 @@
   chỉ true khi có `endDate` + đã qua hạn + còn `outstanding>0`. 9 test mới
   (`webapp/tests/integration/po-progress.test.ts`) + 79 test cũ không hồi
   quy = **88/88 PASS**, lint sạch, build thành công.
+
+### Changed
+- schema: thêm cột `boxCount` trên `stock_moves` + `skidNo` (mutable)
+  trên `travelers` [FID-ERP-001 v1.10] — phát sinh khi SỬA LẠI
+  [FID-ERP-005] (đã DONE) trong lúc viết FID-ERP-009: Andy xác nhận qua
+  ảnh chụp thật `WRAPPING SUMMARY - INFASCO` rằng đóng thùng (`No. of
+  boxes`/`TTL QNT`) + `SKID#` ghi CÙNG lúc/CÙNG dòng với Good/Hold ở khâu
+  Wrapping — không phải việc Office làm ở FID-ERP-009. Migration
+  `20260919031538_add_pack_boxcount_and_skidno`, áp dụng cả `avp_erp`
+  (dev) và `avp_erp_test` (test). 88/88 test cũ vẫn PASS.
+- fix: `POST /api/quality/check` [FID-ERP-005 v1.1] — thêm `pack` optional
+  (`boxCount`/`qty`/`skidNo`/`machineCode`/`shift`) ghi 1 dòng `stock_moves`
+  `moveType='PACK'` CÙNG transaction với `SCRAP`(reject)/`quality_checks`,
+  kèm cập nhật `travelers.skidNo` (lệnh riêng ngay sau — khác Model nên
+  tách khỏi mảng `$transaction` chính, đúng bài học FID-ERP-006). Validate
+  `pack.qty` không vượt `SUM(SELECT) - SUM(PACK)` hiện có của Traveler
+  (tránh đóng gói vượt số thực đã lựa). `webapp/app/wrapping/check/page.tsx`
+  thêm ô nhập PACK (checkbox bật/tắt). 5 test mới
+  (`webapp/tests/integration/quality-check.test.ts`) + 88 test cũ không
+  hồi quy = **93/93 PASS**, lint sạch, build thành công.
+
+### Changed
+- schema: thêm cột `skidNoSnap` trên `packing_slip_lines` [FID-ERP-001
+  v1.11] — snapshot, cùng nguyên tắc `partNoSnap`/`lotNoSnap`/`potNoSnap`
+  (PS là chứng từ xuất hàng thật, không tự đổi theo nếu `travelers.skidNo`
+  đổi sau). Migration `20260919033202_add_skid_no_snap`, áp dụng cả
+  `avp_erp` (dev) và `avp_erp_test` (test). 93/93 test cũ vẫn PASS.
+
+### Added
+- feat: Packing Slip — Office lập + duyệt PS, ghi SHIP thật
+  [FID-ERP-009] — `webapp/lib/packing.ts` (`getPackingEligibility` — tra
+  1 Traveler đủ điều kiện xuất chưa: đã PACK + còn hàng
+  (`availableQty=SUM(PACK)-SUM(SHIP)`), Good/Concession
+  (`traveler_last_quality_check`), Lot thật/Concession
+  (`isLotPlaceholder`+`lotConcessionBy`); `findSameSkidTravelers` — gợi ý
+  Traveler cùng Skid#, không tự thêm). `webapp/app/api/packing/lookup/route.ts`
+  (GET, đọc-only) + `webapp/app/api/packing/confirm/route.ts` (POST —
+  ghi `PackingSlip`+`PackingSlipLine`(snapshot đủ 4 field, kể cả
+  `skidNoSnap`)+`SHIP` từng dòng **TRONG 1 TRANSACTION DUY NHẤT**, dùng
+  interactive transaction vì `PackingSlipLine` phụ thuộc `packingSlipId`
+  vừa tạo — sửa đúng lỗi "22 traveler quên đánh shipped" đã gặp ở
+  AVP_AI). Re-validate ĐỦ điều kiện + tổng qty mỗi `travelerNo` duy nhất
+  ở `confirm` (không chỉ tin UI đã lọc qua `lookup`). PACK và Good/Hold
+  là 2 CỔNG ĐỘC LẬP — Traveler đã đóng gói lúc Good nhưng SAU ĐÓ bị Hold
+  (chưa Concession) vẫn bị chặn khỏi PS dù `availableQty>0`.
+  `isReturnForRework=true` chỉ đưa vào `warnings`, KHÔNG chặn cứng.
+  `totalPallets`/`totalEmpty` nhận nguyên giá trị Office gửi, không ép
+  khớp gợi ý (gợi ý tính ở client từ `COUNT(DISTINCT skidNo)`).
+  `webapp/app/packing/new/page.tsx` (UI). 15 test mới
+  (`webapp/tests/integration/packing.test.ts`) + 93 test cũ không hồi
+  quy = **108/108 PASS**, lint sạch, build thành công.

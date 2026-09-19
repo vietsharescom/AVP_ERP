@@ -76,6 +76,12 @@ model Traveler {
   reworkOfPsNo      String? @map("rework_of_ps_no") // best-effort, tra qua FK thật — có thể NULL
   reworkOfLotNo     String? @map("rework_of_lot_no") // best-effort, tra qua FK thật — có thể NULL
 
+  // v1.10 (FID-ERP-001) — Skid# (FID-ERP-005 v1.1). MUTABLE (giống potNo)
+  // — ghi nhận lúc đóng thùng (PACK) ở khâu Wrapping, dữ liệu thật xác
+  // nhận cùng 1 dòng với Good/Hold (`Data/4.WRAPPING/Wrapping_final.xlsm`
+  // CHECKING SUMMARY, cột SKID#).
+  skidNo String? @map("skid_no")
+
   part          PartControl       @relation(fields: [partNo], references: [partNo])
   lot           Lot?              @relation(fields: [lotNo], references: [lotNo])
   moves         StockMove[]
@@ -101,6 +107,7 @@ model StockMove {
   sourceStation String?   @map("source_station") // "OFFICE" | "FACTORY" | "ADMIN"
   deviceId      String?   @map("device_id") // vd "OFFICE-PC-01"
   note          String? // v1.5 (FID-ERP-001) — ghi chú tự do, dùng cho REWORK (lý do giữ lại chờ xử lý)
+  boxCount      Int?      @map("box_count") // v1.10 (FID-ERP-001) — số thùng, dùng cho PACK (FID-ERP-005 v1.1)
   createdAt     DateTime  @default(now()) @map("created_at")
   // KHÔNG có updatedAt — bảng bất biến
 
@@ -145,6 +152,7 @@ model PackingSlipLine {
   partNoSnap    String  @map("part_no_snap")
   lotNoSnap     String? @map("lot_no_snap")
   potNoSnap     String? @map("pot_no_snap")
+  skidNoSnap    String? @map("skid_no_snap") // v1.11 (FID-ERP-001) — đóng băng Skid# lúc duyệt PS, FID-ERP-009
 
   packingSlip PackingSlip @relation(fields: [packingSlipId], references: [id])
   traveler    Traveler    @relation(fields: [travelerNo], references: [travelerNo])

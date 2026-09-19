@@ -161,6 +161,97 @@ describe("FID-ERP-005 — traveler_last_quality_check VIEW", () => {
   });
 });
 
+describe("FID-ERP-005 v1.1 — pack (đóng thùng + Skid#)", () => {
+  async function selectFor(tr: string, qty: number) {
+    await prisma.stockMove.create({
+      data: { travelerNo: tr, moveType: "SELECT", qty, machineCode: "MC1", operatorCode: "1", shift: "MRNNG", sourceStation: "FACTORY" },
+    });
+  }
+
+  it("pack thiếu boxCount/qty/skidNo/machineCode/shift -> 400", async () => {
+    const tr = await makeTraveler("PACK-MISSING");
+    await selectFor(tr, 1000);
+    const res = await checkPOST(
+      makeRequest({ travelerNo: tr, status: "GOOD", checkedBy: "290", pack: { boxCount: 5 } }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("pack.qty vượt số đã lựa còn có thể đóng gói -> 400, không ghi gì", async () => {
+    const tr = await makeTraveler("PACK-OVER");
+    await selectFor(tr, 100);
+    const res = await checkPOST(
+      makeRequest({
+        travelerNo: tr,
+        status: "GOOD",
+        checkedBy: "290",
+        pack: { boxCount: 1, qty: 200, skidNo: "77", machineCode: "TBL", shift: "AFTRN" },
+      }),
+    );
+    expect(res.status).toBe(400);
+    const count = await prisma.stockMove.count({ where: { travelerNo: tr, moveType: "PACK" } });
+    expect(count).toBe(0);
+  });
+
+  it("pack hợp lệ -> ghi 1 PACK (kèm boxCount) + cập nhật travelers.skidNo, cùng transaction với quality_checks", async () => {
+    const tr = await makeTraveler("PACK-OK");
+    await selectFor(tr, 4800);
+    const res = await checkPOST(
+      makeRequest({
+        travelerNo: tr,
+        status: "GOOD",
+        checkedBy: "290",
+        pack: { boxCount: 32, qty: 4800, skidNo: " skid# 77 ", machineCode: " tbl ", shift: "aftrn" },
+      }),
+    );
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.packMoveId).toBeDefined();
+
+    const pack = await prisma.stockMove.findFirst({ where: { travelerNo: tr, moveType: "PACK" } });
+    expect(pack?.qty).toBe(4800);
+    expect(pack?.boxCount).toBe(32);
+    expect(pack?.machineCode).toBe("TBL");
+    expect(pack?.shift).toBe("AFTRN");
+    expect(pack?.operatorCode).toBe("290");
+
+    const traveler = await prisma.traveler.findUnique({ where: { travelerNo: tr } });
+    expect(traveler?.skidNo).toBe("skid# 77");
+  });
+
+  it("2 lần pack cộng dồn vẫn không vượt SELECT — lần 2 vượt phần còn lại -> 400", async () => {
+    const tr = await makeTraveler("PACK-TWICE");
+    await selectFor(tr, 1000);
+    await checkPOST(
+      makeRequest({
+        travelerNo: tr,
+        status: "GOOD",
+        checkedBy: "290",
+        pack: { boxCount: 5, qty: 700, skidNo: "1", machineCode: "TBL", shift: "MRNNG" },
+      }),
+    );
+    const res2 = await checkPOST(
+      makeRequest({
+        travelerNo: tr,
+        status: "GOOD",
+        checkedBy: "290",
+        pack: { boxCount: 5, qty: 400, skidNo: "2", machineCode: "TBL", shift: "MRNNG" },
+      }),
+    );
+    expect(res2.status).toBe(400); // còn lại 300, gửi 400 -> vượt
+  });
+
+  it("không gửi pack -> hành vi y hệt trước (no regression), không có PACK nào", async () => {
+    const tr = await makeTraveler("PACK-NONE");
+    const res = await checkPOST(makeRequest({ travelerNo: tr, status: "GOOD", checkedBy: "290" }));
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.packMoveId).toBeUndefined();
+    const count = await prisma.stockMove.count({ where: { travelerNo: tr, moveType: "PACK" } });
+    expect(count).toBe(0);
+  });
+});
+
 describe("FID-ERP-005 — quality_checks bất biến ở tầng database", () => {
   it("chặn UPDATE trực tiếp 1 dòng đã ghi", async () => {
     const tr = await makeTraveler("IMMUT-UPD");

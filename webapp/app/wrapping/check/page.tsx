@@ -3,6 +3,8 @@
 // FID-ERP-005 — kiểm tra thực tế skid ở khâu Wrapping: Good/Hold (kèm lý
 // do nếu Hold, Concession có thể đè lên Hold) + reject (lỗi phát hiện
 // THÊM ở đây, khác lần lựa FID-ERP-003).
+// v1.1 — thêm PACK (đóng thùng): số thùng + tổng qty + Skid# + máy/ca —
+// dữ liệu thật (CHECKING SUMMARY) ghi cùng lúc với Good/Hold.
 import { useState } from "react";
 
 type Status = "GOOD" | "HOLD";
@@ -12,6 +14,7 @@ type CheckResult = {
   qualityCheckId: number;
   scrapMoveIds: number[];
   totalRejectQty: number;
+  packMoveId?: number;
 };
 
 export default function WrappingCheckPage() {
@@ -23,6 +26,12 @@ export default function WrappingCheckPage() {
   const [concessionEnabled, setConcessionEnabled] = useState(false);
   const [concessionBy, setConcessionBy] = useState("");
   const [concessionReason, setConcessionReason] = useState("");
+  const [packEnabled, setPackEnabled] = useState(false);
+  const [packBoxCount, setPackBoxCount] = useState<number | null>(null);
+  const [packQty, setPackQty] = useState<number | null>(null);
+  const [packSkidNo, setPackSkidNo] = useState("");
+  const [packMachineCode, setPackMachineCode] = useState("");
+  const [packShift, setPackShift] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CheckResult | null>(null);
@@ -45,6 +54,14 @@ export default function WrappingCheckPage() {
     (status !== "HOLD" || note.trim() !== "") &&
     rejects.every((r) => r.reasonCode.trim() !== "" && r.qty != null && r.qty > 0) &&
     (!concessionEnabled || (status === "HOLD" && concessionBy.trim() !== "" && concessionReason.trim() !== "")) &&
+    (!packEnabled ||
+      (packBoxCount != null &&
+        packBoxCount > 0 &&
+        packQty != null &&
+        packQty > 0 &&
+        packSkidNo.trim() !== "" &&
+        packMachineCode.trim() !== "" &&
+        packShift.trim() !== "")) &&
     !saving;
 
   async function submit() {
@@ -61,6 +78,17 @@ export default function WrappingCheckPage() {
           checkedBy,
           reject: rejects.map((r) => ({ reasonCode: r.reasonCode, qty: r.qty })),
           ...(concessionEnabled ? { concession: { by: concessionBy, reason: concessionReason } } : {}),
+          ...(packEnabled
+            ? {
+                pack: {
+                  boxCount: packBoxCount,
+                  qty: packQty,
+                  skidNo: packSkidNo,
+                  machineCode: packMachineCode,
+                  shift: packShift,
+                },
+              }
+            : {}),
         }),
       });
       const data = await res.json();
@@ -73,6 +101,12 @@ export default function WrappingCheckPage() {
       setConcessionEnabled(false);
       setConcessionBy("");
       setConcessionReason("");
+      setPackEnabled(false);
+      setPackBoxCount(null);
+      setPackQty(null);
+      setPackSkidNo("");
+      setPackMachineCode("");
+      setPackShift("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Đã có lỗi xảy ra.");
     } finally {
@@ -91,7 +125,8 @@ export default function WrappingCheckPage() {
       {result && (
         <p style={{ color: "#166534" }}>
           Đã lưu kiểm tra #{result.qualityCheckId}
-          {result.scrapMoveIds.length > 0 && ` — ${result.scrapMoveIds.length} reject (tổng ${result.totalRejectQty})`}.
+          {result.scrapMoveIds.length > 0 && ` — ${result.scrapMoveIds.length} reject (tổng ${result.totalRejectQty})`}
+          {result.packMoveId != null && ` — đã đóng gói (PACK #${result.packMoveId})`}.
         </p>
       )}
 
@@ -180,6 +215,36 @@ export default function WrappingCheckPage() {
           )}
         </section>
       )}
+
+      <section style={{ marginBottom: 16 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <input type="checkbox" checked={packEnabled} onChange={(e) => setPackEnabled(e.target.checked)} />
+          <span style={{ fontWeight: 600 }}>Đã đóng thùng (PACK) — số thùng + Skid#</span>
+        </label>
+        {packEnabled && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+            <input
+              type="number"
+              placeholder="Số thùng (No. of boxes)"
+              value={packBoxCount ?? ""}
+              onChange={(e) => setPackBoxCount(e.target.value ? Number(e.target.value) : null)}
+            />
+            <input
+              type="number"
+              placeholder="Tổng qty đóng gói (TTL QNT)"
+              value={packQty ?? ""}
+              onChange={(e) => setPackQty(e.target.value ? Number(e.target.value) : null)}
+            />
+            <input placeholder="Skid#" value={packSkidNo} onChange={(e) => setPackSkidNo(e.target.value)} />
+            <input
+              placeholder="Máy (vd TBL-1)"
+              value={packMachineCode}
+              onChange={(e) => setPackMachineCode(e.target.value)}
+            />
+            <input placeholder="Ca (vd MRNNG)" value={packShift} onChange={(e) => setPackShift(e.target.value)} />
+          </div>
+        )}
+      </section>
 
       <button
         onClick={submit}
