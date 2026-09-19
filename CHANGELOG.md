@@ -237,3 +237,28 @@
   cookie session giả lập cho `capture.test.ts`/`rework-return.test.ts`/
   `packing.test.ts`) = **124/124 PASS**, lint sạch, build sạch (không
   cảnh báo).
+
+### Added
+- feat: Báo cáo sản xuất Xưởng [FID-ERP-012] — `webapp/lib/reports/productionReport.ts`
+  (SQL `GROUP BY` thật qua `$queryRawUnsafe`, không loop JS). Sản lượng =
+  SUM `SELECT` theo ngày/tháng/năm + `machine_code` (giữ cả tổng lẫn chi
+  tiết theo máy). Công thức rework (chốt ở FID-ERP-007 §8, viết chính
+  thức vào FID-ERP-012 v1.3): nhận diện "1 dòng SELECT/SCRAP có phải của
+  lần lựa lại hay không" bằng cách so khớp TUYỆT ĐỐI `traveler_no` +
+  `created_at` với 1 dòng `RETURN` (Postgres giữ nguyên 1 giá trị `now()`
+  cho mọi câu lệnh trong CÙNG 1 transaction, không cần cột/bảng mới) —
+  SELECT đi kèm RETURN bị LOẠI HẲN khỏi sản lượng (không cộng), SCRAP đi
+  kèm RETURN bị TRỪ khỏi sản lượng; SCRAP/SELECT bình thường không đổi gì.
+  `defects` (scrap_qty/return_qty/by_reason) đếm riêng SCRAP/RETURN, không
+  gộp. `travelers_open_at_day_start` snapshot đúng mốc 00:00 ngày `from`.
+  `finished_goods_awaiting_shipment` = PACK chưa có SHIP theo sau, KHÔNG
+  giới hạn theo kỳ báo cáo (trạng thái hiện tại). `webapp/app/api/reports/production/route.ts`
+  (GET, đọc-only) + `webapp/app/reports/production/page.tsx` (bảng số
+  liệu — biểu đồ cụ thể để dành, xem FID-ERP-012 §8). 11 test mới
+  (`webapp/tests/integration/production-report.test.ts`) + 124 test cũ
+  không hồi quy = **135/135 PASS**, lint sạch, build thành công.
+  Sửa `vitest.config.mts` thêm `fileParallelism: false` — tránh race khi
+  nhiều file test chạy song song cùng ghi/đọc `stock_moves` (bảng bất
+  biến, không dọn được), phát sinh khi thêm truy vấn KHÔNG scope theo
+  ngày/traveler (`finished_goods_awaiting_shipment`, cố ý đọc toàn bộ bảng
+  theo đúng thiết kế FID).

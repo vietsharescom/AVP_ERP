@@ -1,6 +1,6 @@
 # SESSION REPORT — AVP_ERP
 
-## SES-20260917-001 → SES-20260919-005 (3 ngày làm việc liên tục)
+## SES-20260917-001 → SES-20260919-006 (3 ngày làm việc liên tục)
 
 ---
 
@@ -8,10 +8,10 @@
 
 | Trường | Giá trị |
 |---|---|
-| Session | SES-20260917-001 đến SES-20260919-005 |
+| Session | SES-20260917-001 đến SES-20260919-006 |
 | Chủ dự án | Andy Phan (Viet), Maple Leaf Group |
-| Git | Đã init + push. **Commit mới nhất `0d504bd`** (FID-ERP-011) — đã push lên `main`, working tree sạch, không còn gì chờ commit. |
-| Trạng thái | **FID-ERP-001 (v1.11) + FID-ERP-002→009+011 DONE — 124/124 test PASS, lint sạch, build sạch (không cảnh báo).** FID-ERP-010+013 CHƯA VIẾT, FID-ERP-012 DRAFT. `webapp/` (Next.js 16 + Prisma 7 + PostgreSQL 18) chạy được thật, có đăng nhập theo trạm. |
+| Git | Commit gần nhất đã push: `0d504bd` (FID-ERP-011). **FID-ERP-012 (mục này) code xong nhưng CHƯA COMMIT** — chờ Andy xác nhận (xem Mục 5). |
+| Trạng thái | **FID-ERP-001 (v1.11) + FID-ERP-002→009+011+012 DONE — 135/135 test PASS, lint sạch, build sạch (không cảnh báo).** FID-ERP-010+013 CHƯA VIẾT. `webapp/` (Next.js 16 + Prisma 7 + PostgreSQL 18) chạy được thật, có đăng nhập theo trạm. |
 
 ---
 
@@ -30,7 +30,7 @@
 | [FID-ERP-009](../features/FID-ERP-009_20260919.md) | Packing Slip — duyệt PS, ghi SHIP thật | ✅ DONE | Ghi PS+lines+SHIP **1 transaction duy nhất** (interactive `$transaction`) — sửa lỗi "22 traveler quên đánh shipped" ở AVP_AI. PACK và Good/Hold là **2 cổng độc lập** — đóng gói xong không có nghĩa đủ điều kiện xuất (nếu Hold sau khi đã PACK vẫn bị chặn). `isReturnForRework=true` chỉ cảnh báo, không chặn cứng. |
 | [FID-ERP-011](../features/FID-ERP-011_20260919.md) | Phân quyền theo trạm (session/login đầu tiên) | ✅ DONE | Đăng nhập THEO TRẠM (không phải người dùng cá nhân) — mật khẩu chung/trạm, `checkedBy`/`operatorCode`/`confirmedBy` vẫn TEXT tự do (2 lớp độc lập). Admin = ĐÚNG BẰNG quyền Office, KHÔNG làm Xưởng. Next.js 16 đổi "Middleware"→**"Proxy"** (`webapp/proxy.ts`) — phát hiện qua cảnh báo build, không đoán trước. |
 | FID-ERP-010, 013 | (xem `FID_LIST.md`) | CHƯA VIẾT | FID-ERP-010 (sticker) đang chờ Andy — cần biết loại máy in trước, "note để sau" 2026-09-19 (xem Mục 4 #17). |
-| [FID-ERP-012](../features/FID-ERP-012_20260917.md) | Báo cáo sản xuất Xưởng | DRAFT | Sản lượng tính theo TỪNG MÁY rồi cộng dồn. Công thức sản lượng rework đã chốt hướng ở FID-ERP-007 §8 (không cộng thêm khi rework, trừ lại nếu rework phát hiện SCRAP) — chưa viết vào file FID-012, cần sửa khi tới lượt. |
+| [FID-ERP-012](../features/FID-ERP-012_20260917.md) | Báo cáo sản xuất Xưởng | ✅ DONE (2026-09-19) | Sản lượng tính theo TỪNG MÁY rồi cộng dồn. Công thức rework (chốt hướng ở FID-ERP-007 §8, viết chính thức vào FID-012 v1.3): so khớp TUYỆT ĐỐI `traveler_no`+`created_at` với dòng `RETURN` để nhận diện SELECT/SCRAP của lần rework — SELECT loại hẳn (không cộng), SCRAP trừ khỏi sản lượng. Viết Mục 5 SAI 1 lần lúc đầu (chỉ nói "trừ SCRAP", quên "loại SELECT") — Andy hỏi lại số cụ thể mới lộ ra, đã sửa TRƯỚC khi code. `finished_goods_awaiting_shipment` cố ý không scope theo kỳ → phát hiện đây là truy vấn global DUY NHẤT trong test suite, phải thêm `fileParallelism:false` vào `vitest.config.mts` để tránh race giữa các file test. |
 
 **Việc khác đã làm 2026-09-17**: dọn ~50 file kế thừa khung ISO_CA (xoá 6 file thừa, viết lại ~30 file docs/cl0X); chốt kiến trúc 3 máy cố định + 1 laptop admin, 2 cổng AI (Office+Admin), Xưởng không AI; viết `ODOO_COMPARISON.md` (9 khía cạnh khác Odoo chuẩn).
 
@@ -59,6 +59,7 @@
 | PACK và Good/Hold là 2 CỔNG ĐỘC LẬP — đã đóng thùng KHÔNG có nghĩa đủ điều kiện xuất; hệ thống luôn đọc lần kiểm tra Wrapping GẦN NHẤT | Xem FID-ERP-009 §5 — Traveler PACK lúc Good nhưng sau đó bị Hold vẫn bị chặn khỏi Packing Slip |
 | Đăng nhập THEO TRẠM (mật khẩu chung mỗi trạm), KHÔNG phải tài khoản cá nhân — ít nhất ở giai đoạn này | Quy mô nhỏ, `checkedBy`/`operatorCode`/`confirmedBy` đã có sẵn làm lớp audit người — 2 lớp độc lập, nâng cấp lên tài khoản cá nhân sau không cần viết lại kiến trúc. Andy xác nhận 2026-09-19, xem FID-ERP-011 §2 |
 | Admin (Máy 4, Giám đốc/Quản lý) = ĐÚNG BẰNG bộ quyền Office — KHÔNG tự nhập liệu Xưởng (SELECT/Wrapping), chỉ xem/báo cáo | Andy xác nhận trực tiếp 2026-09-19 — KHÔNG phải "superset tuyệt đối" như mô tả gốc SOFTWARE_ARCHITECTURE.md §2.1 ngụ ý, xem FID-ERP-011 §8 |
+| Test suite (`vitest`) chạy TUẦN TỰ (`fileParallelism: false`), không chạy song song nhiều file | Phát sinh khi viết FID-ERP-012 — `finished_goods_awaiting_shipment` là truy vấn KHÔNG scope theo ngày/traveler (đúng thiết kế, đọc toàn bộ `stock_moves`), chạy song song với file test khác gây race/nhiễu số liệu. Suite còn nhỏ (135 test, ~5s tuần tự) nên đánh đổi được, xem FID-ERP-012 Mục 10 |
 
 ---
 
@@ -89,11 +90,16 @@
 
 Đã `init` + push từ 2026-09-18 (Andy tự làm qua PowerShell). Remote: **`https://github.com/vietsharescom/AVP_ERP.git`**, branch `main`. Quy tắc "không commit/push khi chưa xác nhận" (CLAUDE.md, global) áp dụng — mỗi lần commit trong phiên này đều đã hỏi Andy trước.
 
-**Đã commit + push hết** (2026-09-19), working tree sạch. **Lưu ý riêng**:
-commit `0d504bd` thêm 3 biến mật khẩu trạm + `SESSION_SECRET` vào
-`webapp/.env`/`webapp/.env.test` (2 file đã `.gitignore`, KHÔNG lên
-Git) — Andy tự đổi mật khẩu thật trước khi dùng thật (xem FID-ERP-011 §5,
-giá trị tạm hiện tại: `office-tam-2026`/`xuong-tam-2026`/`admin-tam-2026`).
+**CHƯA COMMIT** (2026-09-19, cuối phiên SES-20260919-006) — FID-ERP-012
+code xong (135/135 test PASS, lint sạch, build sạch) nhưng đang CHỜ Andy
+xác nhận trước khi commit (đúng quy tắc CLAUDE.md). File thay đổi/mới:
+`docs/features/FID-ERP-012_20260917.md` (Status APPROVED→DONE, Mục 10
+mới), `docs/features/FID_LIST.md`, `CHANGELOG.md`,
+`docs/records/LATEST_SESSION.md`, `webapp/lib/reports/productionReport.ts`
+(mới), `webapp/app/api/reports/production/route.ts` (mới),
+`webapp/app/reports/production/page.tsx` (mới),
+`webapp/tests/integration/production-report.test.ts` (mới),
+`webapp/vitest.config.mts` (thêm `fileParallelism: false`).
 
 Có 1 file tạm của Excel (`Data/4.WRAPPING/~$Wrapping_final.xlsm`, sinh ra
 khi Andy mở file xem ảnh chụp WRAPPING SUMMARY) xuất hiện trong
@@ -120,14 +126,16 @@ ca892fd docs: draft FID-ERP-003 v1.1 + schema v1.5 (thêm REWORK)
 
 ### 6. KẾ HOẠCH PHIÊN SAU
 
+**Ưu tiên 0 — xác nhận + commit FID-ERP-012** (chưa commit, xem Mục 5) —
+Andy xem lại nội dung/công thức rồi xác nhận commit hay không.
+
 **Ưu tiên 1 — tiếp tục lộ trình FID** (đúng thứ tự phụ thuộc ở `FID_LIST.md`):
-1. **FID-ERP-012** (Báo cáo sản xuất Xưởng — DRAFT sẵn có, công thức sản
-   lượng rework đã chốt hướng ở FID-ERP-007 §8, cần viết chính thức vào
-   file FID-012 rồi APPROVED/code).
-2. **FID-ERP-010** (In sticker) — vẫn CHỜ Andy (cần biết loại máy in,
-   xem Mục 4 #17) — bỏ qua nếu chưa có thông tin, làm FID-013 (migration)
-   hoặc quay lại việc mở ở Mục 4 nếu FID-012 xong trước mà FID-010 vẫn
-   chưa có thông tin.
+1. **FID-ERP-010** (In sticker) — vẫn CHỜ Andy (cần biết loại máy in,
+   xem Mục 4 #17) — bỏ qua nếu chưa có thông tin.
+2. **FID-ERP-013** (migration dữ liệu lịch sử từ AVP_AI) — có thể bắt đầu
+   nếu FID-ERP-010 vẫn chưa có thông tin máy in (xem `FID_LIST.md` #13 —
+   "để dành, chưa cần viết ngay", nhưng schema+luồng chính đã ổn định đủ
+   12/13 FID DONE).
 
 **Ưu tiên 2 — thử nghiệm thật (nếu Andy có thời gian)**:
 - Dán `GEMINI_API_KEY` thật vào `webapp/.env`, thử `/capture` với file mẫu thật (`Data/2. Traveler/TRAVELER SHEETS SEP 9.pdf`) — hiện tại toàn bộ 124 test đều mock Gemini, chưa ai xác nhận OCR thật hoạt động đúng.
@@ -141,4 +149,4 @@ ca892fd docs: draft FID-ERP-003 v1.1 + schema v1.5 (thêm REWORK)
 
 ---
 
-*Session Report — viết lại đầy đủ 2026-09-18 (gộp lịch sử chi tiết theo FID vào bảng Mục 2 — chi tiết đầy đủ từng quyết định/lệch kế hoạch nằm trong Mục 10 "THỰC HIỆN" của từng file FID tương ứng, không lặp lại ở đây để tránh trôi dạt giữa 2 nơi mô tả cùng 1 việc). Kết thúc phiên SES-20260919-005 (2026-09-19): FID-ERP-005 v1.1 + FID-ERP-007→009+011 DONE, đã commit+push hết (`0d504bd`), working tree sạch.*
+*Session Report — viết lại đầy đủ 2026-09-18 (gộp lịch sử chi tiết theo FID vào bảng Mục 2 — chi tiết đầy đủ từng quyết định/lệch kế hoạch nằm trong Mục 10 "THỰC HIỆN" của từng file FID tương ứng, không lặp lại ở đây để tránh trôi dạt giữa 2 nơi mô tả cùng 1 việc). Kết thúc phiên SES-20260919-006 (2026-09-19): FID-ERP-012 DONE (135/135 test PASS) — CHƯA commit, chờ Andy xác nhận (xem Mục 5).*
