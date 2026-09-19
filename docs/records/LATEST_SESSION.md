@@ -10,8 +10,8 @@
 |---|---|
 | Session | SES-20260917-001 đến SES-20260919-005 |
 | Chủ dự án | Andy Phan (Viet), Maple Leaf Group |
-| Git | Đã init + push. Commit mới nhất **`24b7ce6`** (FID-ERP-007+008). **FID-ERP-009 (+ sửa FID-ERP-005 v1.1) code xong nhưng CHƯA COMMIT** — chờ Andy xác nhận (quy tắc toàn cục). |
-| Trạng thái | **FID-ERP-001 (v1.11) + FID-ERP-002→009 DONE — 108/108 test PASS, lint sạch, build thành công.** 3 FID còn lại CHƯA VIẾT, FID-ERP-012 DRAFT. `webapp/` (Next.js 16 + Prisma 7 + PostgreSQL 18) chạy được thật. |
+| Git | Đã init + push. Commit mới nhất **`d27ec8a`** (FID-ERP-009 + FID-ERP-005 v1.1). **FID-ERP-011 code xong nhưng CHƯA COMMIT** — chờ Andy xác nhận (quy tắc toàn cục). |
+| Trạng thái | **FID-ERP-001 (v1.11) + FID-ERP-002→009+011 DONE — 124/124 test PASS, lint sạch, build sạch (không cảnh báo).** FID-ERP-010+013 CHƯA VIẾT, FID-ERP-012 DRAFT. `webapp/` (Next.js 16 + Prisma 7 + PostgreSQL 18) chạy được thật, có đăng nhập theo trạm. |
 
 ---
 
@@ -28,7 +28,8 @@
 | [FID-ERP-007](../features/FID-ERP-007_20260918.md) | Rework/Return linkage (Pot#=GAYLORD) | ✅ DONE | GAYLORD lúc đăng ký chỉ gắn cờ (không ghi stock_moves — CHECK `qty>0` chặn qty=0 lúc chưa biết số thật). `RETURN` dời sang ghi đúng lúc lựa lại xong (FID-ERP-003), cùng transaction SELECT/SCRAP/REWORK — KHÔNG hiệu chỉnh dòng `SHIP` gốc (đúng Odoo Return). |
 | [FID-ERP-008](../features/FID-ERP-008_20260918.md) | Báo cáo đối chiếu PO | ✅ DONE | SQL `GROUP BY` thật. Thêm bảng mới `po_tracking` — nhân viên TỰ SET ngày bắt đầu/hạn PO (Infasco không ghi hạn tường minh, chỉ "ngầm hiểu trong TUẦN"), server không tự đoán. |
 | [FID-ERP-009](../features/FID-ERP-009_20260919.md) | Packing Slip — duyệt PS, ghi SHIP thật | ✅ DONE | Ghi PS+lines+SHIP **1 transaction duy nhất** (interactive `$transaction`) — sửa lỗi "22 traveler quên đánh shipped" ở AVP_AI. PACK và Good/Hold là **2 cổng độc lập** — đóng gói xong không có nghĩa đủ điều kiện xuất (nếu Hold sau khi đã PACK vẫn bị chặn). `isReturnForRework=true` chỉ cảnh báo, không chặn cứng. |
-| FID-ERP-010→011, 013 | (xem `FID_LIST.md`) | CHƯA VIẾT | Tiếp theo: FID-ERP-010 (sticker). |
+| [FID-ERP-011](../features/FID-ERP-011_20260919.md) | Phân quyền theo trạm (session/login đầu tiên) | ✅ DONE | Đăng nhập THEO TRẠM (không phải người dùng cá nhân) — mật khẩu chung/trạm, `checkedBy`/`operatorCode`/`confirmedBy` vẫn TEXT tự do (2 lớp độc lập). Admin = ĐÚNG BẰNG quyền Office, KHÔNG làm Xưởng. Next.js 16 đổi "Middleware"→**"Proxy"** (`webapp/proxy.ts`) — phát hiện qua cảnh báo build, không đoán trước. |
+| FID-ERP-010, 013 | (xem `FID_LIST.md`) | CHƯA VIẾT | FID-ERP-010 (sticker) đang chờ Andy — cần biết loại máy in trước, "note để sau" 2026-09-19 (xem Mục 4 #17). |
 | [FID-ERP-012](../features/FID-ERP-012_20260917.md) | Báo cáo sản xuất Xưởng | DRAFT | Sản lượng tính theo TỪNG MÁY rồi cộng dồn. Công thức sản lượng rework đã chốt hướng ở FID-ERP-007 §8 (không cộng thêm khi rework, trừ lại nếu rework phát hiện SCRAP) — chưa viết vào file FID-012, cần sửa khi tới lượt. |
 
 **Việc khác đã làm 2026-09-17**: dọn ~50 file kế thừa khung ISO_CA (xoá 6 file thừa, viết lại ~30 file docs/cl0X); chốt kiến trúc 3 máy cố định + 1 laptop admin, 2 cổng AI (Office+Admin), Xưởng không AI; viết `ODOO_COMPARISON.md` (9 khía cạnh khác Odoo chuẩn).
@@ -56,6 +57,8 @@
 | Ngày bắt đầu/hạn PO (`po_tracking`) do NHÂN VIÊN tự set, KHÔNG OCR/không tự suy đoán (kể cả mặc định +7 ngày) | PO Infasco không ghi hạn tường minh, chỉ "ngầm hiểu trong TUẦN" — Andy xác nhận 2026-09-18, xem FID-ERP-008 §5 |
 | PACK (đóng thùng + Skid#) ghi ngay tại khâu Wrapping (FID-ERP-005), KHÔNG phải Office tự nhập ở Packing Slip (FID-ERP-009) | Andy gửi ảnh chụp thật "WRAPPING SUMMARY" — `No. of boxes`/`TTL QNT`/`SKID#` cùng 1 dòng với Good/Hold, 2026-09-19, xem FID-ERP-005 Mục 11 |
 | PACK và Good/Hold là 2 CỔNG ĐỘC LẬP — đã đóng thùng KHÔNG có nghĩa đủ điều kiện xuất; hệ thống luôn đọc lần kiểm tra Wrapping GẦN NHẤT | Xem FID-ERP-009 §5 — Traveler PACK lúc Good nhưng sau đó bị Hold vẫn bị chặn khỏi Packing Slip |
+| Đăng nhập THEO TRẠM (mật khẩu chung mỗi trạm), KHÔNG phải tài khoản cá nhân — ít nhất ở giai đoạn này | Quy mô nhỏ, `checkedBy`/`operatorCode`/`confirmedBy` đã có sẵn làm lớp audit người — 2 lớp độc lập, nâng cấp lên tài khoản cá nhân sau không cần viết lại kiến trúc. Andy xác nhận 2026-09-19, xem FID-ERP-011 §2 |
+| Admin (Máy 4, Giám đốc/Quản lý) = ĐÚNG BẰNG bộ quyền Office — KHÔNG tự nhập liệu Xưởng (SELECT/Wrapping), chỉ xem/báo cáo | Andy xác nhận trực tiếp 2026-09-19 — KHÔNG phải "superset tuyệt đối" như mô tả gốc SOFTWARE_ARCHITECTURE.md §2.1 ngụ ý, xem FID-ERP-011 §8 |
 
 ---
 
@@ -77,6 +80,8 @@
 14. **In Packing Slip ra PDF/giấy thật** — chưa có FID nào phủ việc này (FID-ERP-010 chỉ nói về sticker, khác tài liệu PS) — Andy xác nhận có làm riêng hay gộp vào FID-ERP-009 khi có nhu cầu in thật (xem FID-ERP-009 §8).
 15. **Sửa/huỷ 1 Packing Slip đã duyệt** (vd đếm nhầm Total Pallets, xuất nhầm dòng) — chưa thiết kế quy trình bút toán điều chỉnh (xem FID-ERP-009 §8).
 16. **Chặn cứng `isReturnForRework=true` ở Packing Slip** — hiện chỉ cảnh báo (`warnings`), Andy xác nhận sau nếu cần chặn cứng không cho xuất hàng rework (xem FID-ERP-007 §8 + FID-ERP-009 §8).
+17. **FID-ERP-010 (In sticker) — chưa viết DRAFT được, cần biết loại máy in trước** (`FACILITIES_SETUP.md` §5) — máy in nhãn chuyên dụng (label printer, vd Zebra, gửi lệnh ZPL/EPL) khác hẳn máy in giấy thường (PDF), ảnh hưởng trực tiếp thiết kế route. Andy: "note để sau" (2026-09-19) — để dành đến khi có thông tin.
+18. **Chi tiết vận hành đăng nhập trạm** (FID-ERP-011 §8) — thời lượng session (tạm 12 giờ), đổi mật khẩu trạm qua UI (hiện chỉ sửa `.env`), khoá sau N lần sai — chưa chặn gì, để dành khi Andy có ý kiến cụ thể.
 
 ---
 
@@ -84,17 +89,21 @@
 
 Đã `init` + push từ 2026-09-18 (Andy tự làm qua PowerShell). Remote: **`https://github.com/vietsharescom/AVP_ERP.git`**, branch `main`. Quy tắc "không commit/push khi chưa xác nhận" (CLAUDE.md, global) áp dụng — mỗi lần commit trong phiên này đều đã hỏi Andy trước.
 
-**Đã commit + push** (2026-09-18): `24b7ce6` — FID-ERP-007 (Rework/Return)
-+ FID-ERP-008 (Báo cáo PO).
+**Đã commit + push** (2026-09-19): `d27ec8a` — FID-ERP-009 (Packing Slip)
++ FID-ERP-005 v1.1 (PACK/Skid#).
 
-**Chưa commit**: FID-ERP-009 (Packing Slip, `webapp/lib/packing.ts` +
-2 route + UI) VÀ FID-ERP-005 v1.1 (sửa lại: thêm PACK/Skid# —
-`webapp/app/api/quality/check/route.ts` + UI) — cả 2 code xong, 108/108
-test PASS, lint sạch, build thành công, nhưng working tree đang CHƯA
-commit (chờ Andy xác nhận).
+**Chưa commit**: FID-ERP-011 (Phân quyền theo trạm — `webapp/lib/auth.ts`
++ `webapp/proxy.ts` + 2 route auth + trang `/login` + sửa
+`capture/confirm`/`packing/confirm` đọc `sourceStation` từ session) —
+code xong, 124/124 test PASS, lint sạch, build sạch (không cảnh báo),
+nhưng working tree đang CHƯA commit (chờ Andy xác nhận). **Lưu ý riêng**:
+commit này thêm 3 biến mật khẩu trạm + `SESSION_SECRET` vào
+`webapp/.env`/`webapp/.env.test` (2 file đã `.gitignore`, KHÔNG lên
+Git) — Andy tự đổi mật khẩu thật trước khi dùng thật (xem FID-ERP-011 §5).
 
 Lịch sử commit chính phiên này (mới nhất trước):
 ```
+d27ec8a feat: Packing Slip + sửa FID-ERP-005 thêm PACK/Skid# [FID-ERP-009][FID-ERP-005 v1.1]
 24b7ce6 feat: Rework/Return linkage (Pot#=GAYLORD) + Báo cáo đối chiếu PO [FID-ERP-007][FID-ERP-008]
 70244ae docs: viết lại báo cáo phiên + kế hoạch phiên sau
 255877c feat: Lot placeholder + parse email Lot thật (regex, không AI) [FID-ERP-006]
@@ -111,23 +120,28 @@ ca892fd docs: draft FID-ERP-003 v1.1 + schema v1.5 (thêm REWORK)
 
 ### 6. KẾ HOẠCH PHIÊN SAU
 
-**Ưu tiên 0 — xác nhận commit**: FID-ERP-009 + FID-ERP-005 v1.1 đã code
-xong, 108/108 test PASS, nhưng CHƯA commit (Mục 5) — hỏi Andy xác nhận
-commit/push trước khi làm việc khác.
+**Ưu tiên 0 — xác nhận commit**: FID-ERP-011 đã code xong, 124/124 test
+PASS, nhưng CHƯA commit (Mục 5) — hỏi Andy xác nhận commit/push trước
+khi làm việc khác. Nhắc Andy đổi mật khẩu trạm thật trong `webapp/.env`
+(hiện đang để giá trị tạm `office-tam-2026`/`xuong-tam-2026`/
+`admin-tam-2026`) trước khi dùng thật ở Xưởng/Office.
 
 **Ưu tiên 1 — tiếp tục lộ trình FID** (đúng thứ tự phụ thuộc ở `FID_LIST.md`):
-1. **FID-ERP-010** (In sticker/PrintOut redesign) — cần biết loại máy in
-   trước (xem `FACILITIES_SETUP.md`).
-2. Sau đó: FID-ERP-011 (phân quyền) → FID-ERP-012 (báo cáo sản xuất
-   Xưởng — công thức sản lượng rework đã chốt hướng ở FID-ERP-007 §8,
-   cần viết chính thức vào file FID-012 khi tới lượt).
+1. **FID-ERP-012** (Báo cáo sản xuất Xưởng — DRAFT sẵn có, công thức sản
+   lượng rework đã chốt hướng ở FID-ERP-007 §8, cần viết chính thức vào
+   file FID-012 rồi APPROVED/code).
+2. **FID-ERP-010** (In sticker) — vẫn CHỜ Andy (cần biết loại máy in,
+   xem Mục 4 #17) — bỏ qua nếu chưa có thông tin, làm FID-013 (migration)
+   hoặc quay lại việc mở ở Mục 4 nếu FID-012 xong trước mà FID-010 vẫn
+   chưa có thông tin.
 
 **Ưu tiên 2 — thử nghiệm thật (nếu Andy có thời gian)**:
-- Dán `GEMINI_API_KEY` thật vào `webapp/.env`, thử `/capture` với file mẫu thật (`Data/2. Traveler/TRAVELER SHEETS SEP 9.pdf`) — hiện tại toàn bộ 108 test đều mock Gemini, chưa ai xác nhận OCR thật hoạt động đúng.
+- Dán `GEMINI_API_KEY` thật vào `webapp/.env`, thử `/capture` với file mẫu thật (`Data/2. Traveler/TRAVELER SHEETS SEP 9.pdf`) — hiện tại toàn bộ 124 test đều mock Gemini, chưa ai xác nhận OCR thật hoạt động đúng.
+- Đăng nhập thật qua `/login` (3 trạm) — xác nhận middleware/proxy chặn đúng route theo trạm trên trình duyệt thật (test tự động mới chỉ phủ logic quyết định + defense-in-depth ở 2 route, CHƯA chạy `proxy.ts` thật qua Next.js server, xem FID-ERP-011 Mục 10).
 - Chạy thử luồng đầy đủ 1 Traveler qua tay: `/capture` (RECEIVE) → `/factory/select` (SELECT, tự sinh Lot placeholder) → `/wrapping/check` (Good/Hold + PACK/Skid#) → `/lot/update` (Lot thật) → `/packing/new` (lập + duyệt Packing Slip, ghi SHIP) → search bằng ô tìm ở đầu trang — xác nhận dữ liệu liên kết đúng qua toàn bộ vòng đời 1 Traveler.
 - Thử luồng rework thật: `/capture` destination="po" với `potNo="GAYLORD"` → `/factory/select` lựa lại → `/reports/po-progress` xem `reworkTravelers` — xác nhận `RETURN` ghi đúng lúc lựa lại (FID-ERP-007).
 
-**Ưu tiên 3 — việc mở ở Mục 4** — không chặn code, xử lý khi Andy có thời gian/quyết định (đặc biệt mục 1, 6, 7, 11, 12, 13, 14, 15, 16 ảnh hưởng thiết kế các FID sau).
+**Ưu tiên 3 — việc mở ở Mục 4** — không chặn code, xử lý khi Andy có thời gian/quyết định (đặc biệt mục 1, 6, 7, 11, 12, 13, 14, 15, 16, 17 ảnh hưởng thiết kế các FID sau).
 
 **Khi bắt đầu phiên sau**: đọc file này (tự động) → nếu Mục 4 có gì Andy đã trả lời qua kênh khác (chat/note), cập nhật lại trước khi tiếp tục code.
 

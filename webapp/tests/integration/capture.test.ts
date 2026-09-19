@@ -15,6 +15,7 @@ import { POST as extractPOST } from "../../app/api/capture/extract/route";
 import { POST as confirmPOST } from "../../app/api/capture/confirm/route";
 import { isCaptureRowIncomplete } from "../../app/capture/page";
 import { prisma } from "../../lib/prisma";
+import { COOKIE_NAME, createSessionCookieValue, type Station } from "../../lib/auth";
 
 const RUN = Date.now().toString();
 const PART_NO = `TESTPART-CAP-${RUN}`;
@@ -42,11 +43,16 @@ function makeExtractRequest(destination: string | null, file: File | null) {
   return asNextRequest(new Request("http://localhost/api/capture/extract", { method: "POST", body: formData }));
 }
 
-function makeConfirmRequest(body: unknown) {
+// FID-ERP-011 — `sourceStation` giờ đọc từ session (cookie), không còn
+// nhận từ body. `station` mặc định "OFFICE" (đủ cho hầu hết test).
+function makeConfirmRequest(body: unknown, station: Station = "OFFICE") {
   return asNextRequest(
     new Request("http://localhost/api/capture/confirm", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        cookie: `${COOKIE_NAME}=${createSessionCookieValue(station)}`,
+      },
       body: JSON.stringify(body),
     }),
   );
@@ -134,7 +140,6 @@ describe("FID-ERP-002 — /api/capture/confirm destination='warehouse'", () => {
         destination: "warehouse",
         rows: [{ travelerNo: tr, partNo: PART_NO, potNo: "693", qty: 45000 }],
         confirmedBy: "111",
-        sourceStation: "OFFICE",
       }),
     );
     const data = await res.json();
@@ -157,7 +162,6 @@ describe("FID-ERP-002 — /api/capture/confirm destination='warehouse'", () => {
         destination: "warehouse",
         rows: [{ travelerNo: tr, partNo: `KHONG-TON-TAI-${RUN}`, potNo: "1", qty: 10 }],
         confirmedBy: "111",
-        sourceStation: "OFFICE",
       }),
     );
     expect(res.status).toBe(500);
@@ -167,15 +171,17 @@ describe("FID-ERP-002 — /api/capture/confirm destination='warehouse'", () => {
     expect(moves).toBe(0);
   });
 
-  it("chặn sourceStation='FACTORY' ở API (400), không tới DB", async () => {
+  it("đăng nhập trạm FACTORY -> 400, không tới DB (Xưởng không có cổng này, FID-ERP-011)", async () => {
     const tr = travelerNo("WH-FACTORY");
     const res = await confirmPOST(
-      makeConfirmRequest({
-        destination: "warehouse",
-        rows: [{ travelerNo: tr, partNo: PART_NO, potNo: "1", qty: 10 }],
-        confirmedBy: "111",
-        sourceStation: "FACTORY",
-      }),
+      makeConfirmRequest(
+        {
+          destination: "warehouse",
+          rows: [{ travelerNo: tr, partNo: PART_NO, potNo: "1", qty: 10 }],
+          confirmedBy: "111",
+        },
+        "FACTORY",
+      ),
     );
     expect(res.status).toBe(400);
     const traveler = await prisma.traveler.findUnique({ where: { travelerNo: tr } });
@@ -189,7 +195,6 @@ describe("FID-ERP-002 — /api/capture/confirm destination='warehouse'", () => {
         destination: "warehouse",
         rows: [{ travelerNo: tr, partNo: PART_NO, potNo: "1", qty: 0 }],
         confirmedBy: "111",
-        sourceStation: "OFFICE",
       }),
     );
     expect(res.status).toBe(400);
@@ -204,7 +209,6 @@ describe("FID-ERP-002 — /api/capture/confirm destination='warehouse'", () => {
         destination: "warehouse",
         rows: [{ travelerNo: tr, partNo: PART_NO, potNo: "1", qty: 100 }],
         confirmedBy: "111",
-        sourceStation: "OFFICE",
       }),
     );
 
@@ -213,7 +217,6 @@ describe("FID-ERP-002 — /api/capture/confirm destination='warehouse'", () => {
         destination: "warehouse",
         rows: [{ travelerNo: tr, partNo: PART_NO, potNo: "1", qty: 50 }],
         confirmedBy: "111",
-        sourceStation: "OFFICE",
       }),
     );
     const data2 = await res2.json();

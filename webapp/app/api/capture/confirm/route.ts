@@ -4,9 +4,12 @@
 // 2 destination chỉ gắn cờ isReturnForRework + best-effort reworkOfPsNo/
 // reworkOfLotNo, KHÔNG ghi stock_moves nào (số lượng thật ghi ở
 // FID-ERP-003 lúc lựa lại xong — xem docs/features/FID-ERP-007_20260918.md §4b).
+// FID-ERP-011 §4d — `sourceStation` ĐỌC TỪ SESSION (đăng nhập theo trạm),
+// KHÔNG còn nhận từ body client gửi lên (client gửi gì cũng bị bỏ qua).
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
 import { isGaylordReturn, findReworkOrigin } from "../../../../lib/rework";
+import { getStationFromRequest } from "../../../../lib/auth";
 
 type CaptureDestination = "po" | "warehouse";
 
@@ -22,15 +25,12 @@ type ConfirmBody = {
   destination?: unknown;
   rows?: unknown;
   confirmedBy?: unknown;
-  sourceStation?: unknown;
   deviceId?: unknown;
 };
 
 type ReturnForReworkEntry = { travelerNo: string; reworkOfPsNo: string | null; reworkOfLotNo: string | null };
 
 const ALLOWED_DESTINATIONS = new Set<CaptureDestination>(["po", "warehouse"]);
-// Xưởng không có cổng AI (chốt 2026-09-17) — chặn ở tầng API, không chỉ ẩn ở UI.
-const ALLOWED_SOURCE_STATIONS = new Set(["OFFICE", "ADMIN"]);
 
 function badRequest(error: string) {
   return NextResponse.json({ ok: false, error }, { status: 400 });
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     return badRequest("Body phải là JSON hợp lệ.");
   }
 
-  const { destination, rows, confirmedBy, sourceStation, deviceId } = body;
+  const { destination, rows, confirmedBy, deviceId } = body;
 
   if (typeof destination !== "string" || !ALLOWED_DESTINATIONS.has(destination as CaptureDestination)) {
     return badRequest("destination phải là 'po' hoặc 'warehouse'.");
@@ -66,9 +66,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // FID-ERP-011 — Xưởng không có cổng AI (chốt 2026-09-17); ADMIN có cùng
+  // quyền OFFICE (đã xác nhận 2026-09-19, xem lib/auth.ts ROUTE_RULES).
+  // Middleware đã chặn trạm sai trước khi tới đây — kiểm tra LẠI ở route
+  // (defense in depth, không chỉ tin middleware).
+  const station = getStationFromRequest(req);
   if (destination === "warehouse") {
-    if (typeof sourceStation !== "string" || !ALLOWED_SOURCE_STATIONS.has(sourceStation)) {
-      return badRequest("sourceStation phải là 'OFFICE' hoặc 'ADMIN' — Xưởng không có cổng này.");
+    if (station !== "OFFICE" && station !== "ADMIN") {
+      return badRequest("Chưa đăng nhập đúng trạm (OFFICE hoặc ADMIN) — Xưởng không có cổng này.");
     }
     for (const row of typedRows) {
       // FID-ERP-007 §5 — dòng GAYLORD KHÔNG cần qty (bỏ qua dù có gửi),
@@ -165,7 +170,7 @@ export async function POST(req: NextRequest) {
             travelerNo,
             moveType: "RECEIVE",
             qty,
-            sourceStation: sourceStation as string,
+            sourceStation: station,
             deviceId: typeof deviceId === "string" ? deviceId : null,
           },
         }),

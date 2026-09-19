@@ -2,9 +2,12 @@
 // (snapshot) + SHIP từng dòng TRONG 1 TRANSACTION DUY NHẤT — sửa đúng lỗi
 // "22 traveler quên đánh shipped" đã gặp ở AVP_AI. Re-validate ĐỦ điều
 // kiện eligible cho TỪNG dòng ở đây (không chỉ tin UI đã lọc qua `lookup`).
+// FID-ERP-011 §4d — `sourceStation` ĐỌC TỪ SESSION (OFFICE hoặc ADMIN),
+// KHÔNG còn hardcode "OFFICE" cố định (Admin cũng lập PS được).
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
 import { getPackingEligibility } from "../../../../lib/packing";
+import { getStationFromRequest } from "../../../../lib/auth";
 
 type LineInput = { travelerNo?: unknown; qty?: unknown };
 
@@ -37,6 +40,11 @@ export async function POST(req: NextRequest) {
   }
 
   const { psNo, totalPallets, totalEmpty, lines, confirmedBy } = body;
+
+  const station = getStationFromRequest(req);
+  if (station !== "OFFICE" && station !== "ADMIN") {
+    return badRequest("Chưa đăng nhập đúng trạm (OFFICE hoặc ADMIN).");
+  }
 
   if (typeof psNo !== "string" || psNo.trim() === "") {
     return badRequest("psNo bắt buộc.");
@@ -125,7 +133,7 @@ export async function POST(req: NextRequest) {
         });
 
         const ship = await tx.stockMove.create({
-          data: { travelerNo, moveType: "SHIP", qty, sourceStation: "OFFICE" },
+          data: { travelerNo, moveType: "SHIP", qty, sourceStation: station },
         });
         shipMoveIds.push(ship.id);
       }

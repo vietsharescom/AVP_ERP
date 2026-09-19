@@ -7,6 +7,7 @@ import { isGaylordReturn, findReworkOrigin, hasReturnMove } from "../../lib/rewo
 import { POST as captureConfirmPOST } from "../../app/api/capture/confirm/route";
 import { POST as selectConfirmPOST } from "../../app/api/factory/select/confirm/route";
 import { prisma } from "../../lib/prisma";
+import { COOKIE_NAME, createSessionCookieValue } from "../../lib/auth";
 
 const RUN = Date.now().toString();
 const PART_NO = `TESTPART-RWK-${RUN}`;
@@ -27,11 +28,16 @@ function asNextRequest(req: Request): NextRequest {
   return req as unknown as NextRequest;
 }
 
+// FID-ERP-011 — sourceStation đọc từ session (cookie), đăng nhập OFFICE
+// mặc định (đủ cho các test ở file này).
 function makeCaptureRequest(body: unknown) {
   return asNextRequest(
     new Request("http://localhost/api/capture/confirm", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        cookie: `${COOKIE_NAME}=${createSessionCookieValue("OFFICE")}`,
+      },
       body: JSON.stringify(body),
     }),
   );
@@ -114,7 +120,6 @@ describe("FID-ERP-007 — /api/capture/confirm, potNo=GAYLORD", () => {
         destination: "warehouse",
         rows: [{ travelerNo: tr, partNo: PART_NO, potNo: "Gaylord ", qty: 4500 }],
         confirmedBy: "111",
-        sourceStation: "OFFICE",
       }),
     );
     const data = await res.json();
@@ -135,7 +140,6 @@ describe("FID-ERP-007 — /api/capture/confirm, potNo=GAYLORD", () => {
         destination: "warehouse",
         rows: [{ travelerNo: tr, partNo: PART_NO, potNo: "693", qty: 45000 }],
         confirmedBy: "111",
-        sourceStation: "OFFICE",
       }),
     );
     expect(res.status).toBe(200);

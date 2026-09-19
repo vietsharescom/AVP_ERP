@@ -211,3 +211,29 @@
   `webapp/app/packing/new/page.tsx` (UI). 15 test mới
   (`webapp/tests/integration/packing.test.ts`) + 93 test cũ không hồi
   quy = **108/108 PASS**, lint sạch, build thành công.
+
+### Added
+- feat: Phân quyền theo TRẠM — session/login lần ĐẦU TIÊN của cả dự án
+  [FID-ERP-011] — `webapp/lib/auth.ts` (mật khẩu chung mỗi trạm trong
+  `.env`, cookie ký HMAC không cần bảng `users`/session trong DB;
+  `isStationAllowed`/`isPublicPath` — logic phân quyền THUẦN, tách riêng
+  để test được bằng Vitest). `webapp/proxy.ts` (Next.js 16 đổi tên
+  "Middleware" thành **"Proxy"** — file quy ước `proxy.ts`, hàm export
+  `proxy`, mặc định Node.js runtime thay vì Edge — phát hiện qua cảnh
+  báo build, sửa lại đúng theo `node_modules/next/dist/docs/`, không
+  đoán) — chặn route theo bảng phân quyền
+  `SOFTWARE_ARCHITECTURE.md` §2.1. `POST /api/auth/login` +
+  `POST /api/auth/logout`, `webapp/app/login/page.tsx`. Sửa
+  `webapp/app/api/capture/confirm/route.ts` + `webapp/app/api/packing/confirm/route.ts`
+  — `sourceStation` đọc từ session, KHÔNG còn nhận từ body client/hardcode
+  cứng "OFFICE" (đúng lỗ hổng đã ghi trước ở FID-ERP-002 NOT IN SCOPE).
+  Admin (Máy 4) = ĐÚNG BẰNG bộ quyền Office (đã xác nhận 2026-09-19 —
+  KHÔNG tự nhập liệu Xưởng), KHÔNG phải superset tuyệt đối —
+  `factory/select/confirm`/`quality/check` GIỮ NGUYÊN hardcode
+  `sourceStation="FACTORY"`, không sửa gì. `checkedBy`/`operatorCode`/
+  `confirmedBy`/`updatedBy` vẫn TEXT tự do như cũ (2 lớp độc lập với
+  session trạm). 16 test mới (`webapp/tests/integration/auth.test.ts` +
+  1 test trong `packing.test.ts`) + 108 test cũ không hồi quy (cập nhật
+  cookie session giả lập cho `capture.test.ts`/`rework-return.test.ts`/
+  `packing.test.ts`) = **124/124 PASS**, lint sạch, build sạch (không
+  cảnh báo).

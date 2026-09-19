@@ -6,6 +6,7 @@ import type { NextRequest } from "next/server";
 import { GET as lookupGET } from "../../app/api/packing/lookup/route";
 import { POST as confirmPOST } from "../../app/api/packing/confirm/route";
 import { prisma } from "../../lib/prisma";
+import { COOKIE_NAME, createSessionCookieValue } from "../../lib/auth";
 
 const RUN = Date.now().toString();
 const PART_NO = `TESTPART-PACK-${RUN}`;
@@ -33,11 +34,16 @@ function lookupRequest(qs: string) {
   return asNextRequest(new Request(`http://localhost/api/packing/lookup${qs}`));
 }
 
+// FID-ERP-011 — sourceStation đọc từ session (cookie), đăng nhập OFFICE
+// mặc định.
 function confirmRequest(body: unknown) {
   return asNextRequest(
     new Request("http://localhost/api/packing/confirm", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        cookie: `${COOKIE_NAME}=${createSessionCookieValue("OFFICE")}`,
+      },
       body: JSON.stringify(body),
     }),
   );
@@ -164,14 +170,40 @@ describe("FID-ERP-009 — GET /api/packing/lookup", () => {
     await prisma.traveler.create({ data: { travelerNo: tr, partNo: PART_NO } });
     await pack(tr, 1000);
     await goodCheck(tr);
-    const before = await prisma.stockMove.count();
+    // Đếm ĐÚNG PHẠM VI travelerNo này — đếm toàn bảng sẽ đụng độ với các
+    // file test khác chạy SONG SONG cùng database avp_erp_test (Vitest
+    // chạy nhiều test file đồng thời), gây flaky không liên quan gì tới
+    // logic đang test.
+    const before = await prisma.stockMove.count({ where: { travelerNo: tr } });
     await lookupGET(lookupRequest(`?travelerNo=${tr}`));
-    const after = await prisma.stockMove.count();
+    const after = await prisma.stockMove.count({ where: { travelerNo: tr } });
     expect(after).toBe(before);
   });
 });
 
 describe("FID-ERP-009 — POST /api/packing/confirm", () => {
+  it("FID-ERP-011: đăng nhập trạm FACTORY -> 400, không ghi gì (Xưởng không lập PS)", async () => {
+    const tr = travelerNo("FACTORY-BLOCKED");
+    await prisma.traveler.create({ data: { travelerNo: tr, partNo: PART_NO } });
+    await pack(tr, 1000);
+    await goodCheck(tr);
+    const res = await confirmPOST(
+      asNextRequest(
+        new Request("http://localhost/api/packing/confirm", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            cookie: `${COOKIE_NAME}=${createSessionCookieValue("FACTORY")}`,
+          },
+          body: JSON.stringify({ psNo: psNo("FACTORY"), lines: [{ travelerNo: tr, qty: 500 }], confirmedBy: "111" }),
+        }),
+      ),
+    );
+    expect(res.status).toBe(400);
+    const ps = await prisma.packingSlip.count({ where: { psNo: psNo("FACTORY") } });
+    expect(ps).toBe(0);
+  });
+
   it("1 dòng không đạt eligible -> 400 TOÀN BỘ, không ghi PS/line/SHIP nào", async () => {
     const trGood = travelerNo("MIX-GOOD");
     const trBad = travelerNo("MIX-BAD");
