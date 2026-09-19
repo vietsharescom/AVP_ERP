@@ -262,3 +262,34 @@
   biến, không dọn được), phát sinh khi thêm truy vấn KHÔNG scope theo
   ngày/traveler (`finished_goods_awaiting_shipment`, cố ý đọc toàn bộ bảng
   theo đúng thiết kế FID).
+
+### Added
+- feat: Migration từ AVP_AI — cơ chế + test bằng dữ liệu mẫu [FID-ERP-013]
+  — `webapp/lib/migrate/{types,csv,dates,legacyLot,migrate}.ts`: 5 hàm
+  `migratePartControl/migrateRawMaterial/migrateWarehouse/migrateFinishGood/
+  migratePackingList`, mỗi hàm tự validate + quarantine dòng lỗi (bảng MỚI
+  `migration_quarantine`, FID-ERP-001 v1.12) thay vì bịa giá trị, và tự
+  kiểm tra "đã migrate chưa" bằng khoá tự nhiên trước khi ghi (idempotent —
+  chạy lại nhiều lần không tạo dòng trùng). Ánh xạ cột đúng tên thật đọc
+  từ code AVP_AI (`D:\AVP_AI\webapp\src\app\api\**\route.ts`, THAM KHẢO
+  không sửa): `machineCode = machine+mcNo` nối liền (đúng công thức
+  DESCRIPTION đã kiểm chứng ở `BRS_TRS.md`), `SCRAP.reasonCode` suy từ so
+  khớp `specialNotes` với 10 `defect_types` — không khớp được thì quarantine
+  CẢ dòng `FinishGood` (không tách riêng SELECT), Lot placeholder thật của
+  AVP_AI (`TRAVELERRECEIVED`/`SORT&RETURN`/`SPLIT FROM TR#...`) bị lọc
+  trước khi ghi `travelers.lotNo`, `potNo="GAYLORD"` tự set
+  `isReturnForRework=true` (dùng lại `isGaylordReturn` từ FID-ERP-007),
+  Concession ghi THÊM 1 dòng `quality_checks` (không sửa dòng đầu, đúng
+  pattern append-only đã chốt). 3 script CLI
+  (`webapp/scripts/migrate/{audit,run,reconcile}.ts`) — Phase
+  0 (quét lỗi, không ghi gì)/1+2 (quarantine+migrate)/3 (đối chiếu
+  COUNT/SUM CSV gốc vs Postgres) đúng pattern đã chốt ở
+  `docs/records/Consultations/260917_Architechture/FINAL_DECISION.md` #6.
+  19 test mới (`webapp/tests/integration/migrate.test.ts`, dùng dữ liệu
+  MẪU giả lập — Andy: "trước mắt lấy data mới làm thử", CHƯA chạy trên
+  export CSV thật từ AVP_AI) + 135 test cũ không hồi quy = **154/154
+  PASS**, lint sạch, build thành công (kể cả `tsc --noEmit` phủ luôn
+  `webapp/scripts/`, không nằm trong `next build`). **Việc migrate dữ
+  liệu LỊCH SỬ THẬT vẫn CHƯA làm** — FID-ERP-013 giữ Status=DRAFT, còn 6
+  câu hỏi mở ở Mục 0 (cách lấy CSV, mốc cắt, mặc định pallet/empty...)
+  chờ Andy trả lời trước khi APPROVED chạy thật.

@@ -230,3 +230,20 @@ model PoTracking {
 
   @@map("po_tracking")
 }
+
+// v1.12 (FID-ERP-001) — FID-ERP-013 (migration 1 lần từ AVP_AI). Dòng dữ
+// liệu cũ KHÔNG qua được audit (thiếu FK, thiếu reasonCode, ngày không
+// parse được...) — giữ NGUYÊN VẸN `rawData` để Andy review tay, KHÔNG bịa
+// giá trị để cố nhét vào bảng chính. KHÔNG append-only (hàng đợi công
+// việc, Andy đánh dấu resolved sau khi xử lý — khác sổ cái sự kiện).
+model MigrationQuarantine {
+  id          Int      @id @default(autoincrement())
+  sourceSheet String   @map("source_sheet") // "RawMaterial" | "Warehouse" | "FinishGood" | "PartControl" | "PackingList"
+  sourceRow   Int      @map("source_row") // số dòng trong CSV nguồn (1-index, đã trừ header)
+  rawData     Json     @map("raw_data")
+  errorCodes  String[] @map("error_codes")
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("migration_quarantine")
+}
