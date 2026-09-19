@@ -3,6 +3,7 @@
 // FID-ERP-012 — Báo cáo sản xuất Xưởng. Bảng số liệu trước (biểu đồ cụ
 // thể quyết định sau, xem FID-ERP-012 §8 NOT IN SCOPE).
 import { useEffect, useState } from "react";
+import PageContainer from "../../../components/PageContainer";
 
 type MachineQty = { machine_code: string; qty: number };
 type ProductionBucket = { date: string; qty: number; by_machine: MachineQty[] };
@@ -54,7 +55,7 @@ export default function ProductionReportPage() {
   }, []);
 
   return (
-    <main style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
+    <PageContainer>
       <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>🏭 Báo cáo sản xuất Xưởng</h1>
       <p style={{ fontSize: 13, color: "#666", marginBottom: 16 }}>
         Sản lượng theo ngày/máy, hàng lỗi/hỏng/trả lại, Traveler tồn đọng, thành phẩm chờ xuất.
@@ -103,28 +104,30 @@ export default function ProductionReportPage() {
 
           <section style={{ marginBottom: 24 }}>
             <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Sản lượng theo {groupBy === "day" ? "ngày" : groupBy === "month" ? "tháng" : "năm"}</h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "1px solid #ddd" }}>
-                  <th style={{ padding: 4 }}>Ngày</th>
-                  <th style={{ padding: 4 }}>Tổng</th>
-                  <th style={{ padding: 4 }}>Theo máy</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.production.map((p) => (
-                  <tr key={p.date} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: 4 }}>{p.date}</td>
-                    <td style={{ padding: 4, fontWeight: 600 }}>{p.qty}</td>
-                    <td style={{ padding: 4, color: "#555" }}>
-                      {p.by_machine.length === 0
-                        ? "—"
-                        : p.by_machine.map((m) => `${m.machine_code}: ${m.qty}`).join(", ")}
-                    </td>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ textAlign: "left", borderBottom: "1px solid #ddd" }}>
+                    <th style={{ padding: 4 }}>Ngày</th>
+                    <th style={{ padding: 4 }}>Tổng</th>
+                    <th style={{ padding: 4 }}>Theo máy</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.production.map((p) => (
+                    <tr key={p.date} style={{ borderBottom: "1px solid #eee" }}>
+                      <td style={{ padding: 4 }}>{p.date}</td>
+                      <td style={{ padding: 4, fontWeight: 600 }}>{p.qty}</td>
+                      <td style={{ padding: 4, color: "#555" }}>
+                        {p.by_machine.length === 0
+                          ? "—"
+                          : p.by_machine.map((m) => `${m.machine_code}: ${m.qty}`).join(", ")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
 
           {data.defects.by_reason.length > 0 && (
@@ -141,6 +144,6 @@ export default function ProductionReportPage() {
           )}
         </>
       )}
-    </main>
+    </PageContainer>
   );
 }

@@ -35,7 +35,11 @@ type SearchResponse = {
 
 const DEBOUNCE_MS = 300;
 
-export default function GlobalSearchBar() {
+// FID-ERP-014 §4d — `size="large"` dùng ở trang chủ (Search là trọng
+// tâm, xem §4c) — KHÔNG đổi logic tìm kiếm/API, chỉ đổi CSS kích thước.
+type GlobalSearchBarProps = { size?: "default" | "large" };
+
+export default function GlobalSearchBar({ size = "default" }: GlobalSearchBarProps) {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<SearchResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -58,13 +62,29 @@ export default function GlobalSearchBar() {
   const totalMatches =
     (result?.travelers.length ?? 0) + (result?.packingSlips.length ?? 0) + (result?.partControls.length ?? 0);
 
+  const isLarge = size === "large";
+
   return (
-    <div style={{ position: "relative", border: "2px solid #111", borderRadius: 8, padding: 10, background: "#fff" }}>
+    <div
+      style={{
+        position: "relative",
+        border: "2px solid #111",
+        borderRadius: 8,
+        padding: isLarge ? 16 : 10,
+        background: "#fff",
+      }}
+    >
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={loading ? "Đang tìm..." : "🔍 Tìm Traveler#, Part#, PO#, Pot#, Lot#, PS#..."}
-        style={{ width: "100%", padding: "8px 10px", fontSize: 15, boxSizing: "border-box" }}
+        style={{
+          width: "100%",
+          padding: isLarge ? "14px 16px" : "8px 10px",
+          fontSize: isLarge ? 20 : 15,
+          boxSizing: "border-box",
+        }}
+        autoFocus={isLarge}
       />
       {query.trim() !== "" && result && (
         <div style={{ marginTop: 8, maxHeight: 384, overflowY: "auto", border: "1px solid #ddd", borderRadius: 6, background: "#fafafa" }}>

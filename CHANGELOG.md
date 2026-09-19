@@ -293,3 +293,34 @@
   liệu LỊCH SỬ THẬT vẫn CHƯA làm** — FID-ERP-013 giữ Status=DRAFT, còn 6
   câu hỏi mở ở Mục 0 (cách lấy CSV, mốc cắt, mặc định pallet/empty...)
   chờ Andy trả lời trước khi APPROVED chạy thật.
+
+### Added
+- feat: Thiết kế UI thống nhất — menu điều hướng + trang chủ + đồng bộ 8
+  trang + responsive [FID-ERP-014] — tham khảo cấu trúc thật Odoo
+  Manufacturing (nhóm Operations/Reporting) + Zoho Inventory (Pending
+  Actions), tra qua WebSearch/WebFetch. `webapp/components/NavBar.tsx`
+  (Server Component, đọc session qua `next/headers`) +
+  `NavBarClient.tsx` (phần tương tác: đăng xuất, thu gọn "☰" ở màn hình
+  hẹp) — nhóm link "Nhập liệu"/"Báo cáo" lọc ĐÚNG bảng phân quyền đã có
+  (`isStationAllowed`, FID-ERP-011, không viết bảng riêng lần 2), ẩn cả
+  nhóm nếu rỗng sau khi lọc. `webapp/app/page.tsx` — trang chủ thật thay
+  template `create-next-app` mặc định: Search làm khối đầu tiên/to nhất
+  (nhu cầu chính của user luôn là tìm kiếm), "Việc cần làm" (đếm PO tồn
+  đọng/trễ hạn/rework/hàng chờ xuất, gọi thẳng lib report có sẵn — không
+  viết API mới) làm phụ, danh sách link đầy đủ cuối cùng.
+  `webapp/lib/ui/tokens.ts` + `PageContainer.tsx` — khung/màu dùng CHUNG
+  cho cả 8 trang nghiệp vụ đã có (trước đó mỗi trang tự chọn `maxWidth`
+  lệch nhau thật: 960/780/720/360) + 1 màu nhấn duy nhất cho nút hành
+  động chính (trước đó mỗi trang 1 màu riêng) — CHỈ đổi khung/màu/
+  spacing/responsive, KHÔNG đổi state/gọi API/validate của 8 trang.
+  Responsive cho cả 8 trang + phần mới (quản lý cần xem báo cáo từ điện
+  thoại). Phát hiện + sửa 1 lỗi thật lúc kiểm chứng bằng ảnh chụp trình
+  duyệt (Puppeteer): bản đầu có 2 ô search chồng nhau ở trang chủ (trang
+  chủ tự render 1 cái to, layout đã có sẵn 1 cái nhỏ) — sửa bằng
+  `SearchBarSlot.tsx` làm CHỖ DUY NHẤT quyết định kích thước theo route.
+  6 test mới (`webapp/tests/integration/auth.test.ts`, gộp chung: `GET
+  /api/auth/me` + `filterNavGroups`) + 154 test cũ không hồi quy =
+  **160/160 PASS**, lint sạch, build thành công, kiểm chứng bằng trình
+  duyệt thật (FACTORY/OFFICE đăng nhập, màn hình hẹp 375px, không lỗi
+  console). Giữ NGUYÊN phân quyền theo trạm (FID-ERP-011) và thiết kế
+  FID-ERP-002 — chỉ đồng bộ giao diện, không đổi nghiệp vụ/bảo mật.

@@ -1,6 +1,6 @@
 # SESSION REPORT — AVP_ERP
 
-## SES-20260917-001 → SES-20260919-007 (3 ngày làm việc liên tục)
+## SES-20260917-001 → SES-20260919-008 (3 ngày làm việc liên tục)
 
 ---
 
@@ -8,10 +8,10 @@
 
 | Trường | Giá trị |
 |---|---|
-| Session | SES-20260917-001 đến SES-20260919-007 |
+| Session | SES-20260917-001 đến SES-20260919-008 |
 | Chủ dự án | Andy Phan (Viet), Maple Leaf Group |
-| Git | Commit gần nhất đã push: `0d504bd` (FID-ERP-011). Đã commit LOCAL (chưa push) `fcfe437` (FID-ERP-012). **FID-ERP-013 (mục này, cơ chế migrate + test data mẫu) code xong nhưng CHƯA COMMIT** — chờ Andy xác nhận (xem Mục 5). |
-| Trạng thái | **FID-ERP-001 (v1.12) + FID-ERP-002→009+011+012 DONE — 154/154 test PASS, lint sạch, build sạch (không cảnh báo).** FID-ERP-013 DRAFT (cơ chế đã code+test bằng data mẫu, MIGRATE THẬT chờ Andy trả lời Mục 0). FID-ERP-010 CHƯA VIẾT (chờ máy in). `webapp/` (Next.js 16 + Prisma 7 + PostgreSQL 18) chạy được thật, có đăng nhập theo trạm. |
+| Git | Commit gần nhất đã push: `0d504bd` (FID-ERP-011). Đã commit LOCAL (chưa push): `fcfe437` (FID-ERP-012), `58ec75c` (FID-ERP-013 cơ chế). **FID-ERP-014 (menu/trang chủ/đồng bộ UI) code xong nhưng CHƯA COMMIT** — chờ Andy xác nhận (xem Mục 5). |
+| Trạng thái | **FID-ERP-001 (v1.12) + FID-ERP-002→009+011+012+014 DONE — 160/160 test PASS, lint sạch, build sạch (không cảnh báo), UI đã kiểm chứng bằng ảnh chụp trình duyệt thật.** FID-ERP-013 DRAFT (cơ chế đã code+test bằng data mẫu, MIGRATE THẬT chờ Andy trả lời Mục 0). FID-ERP-010 CHƯA VIẾT (chờ máy in). `webapp/` (Next.js 16 + Prisma 7 + PostgreSQL 18) chạy được thật trên `localhost:3001`, có đăng nhập theo trạm + menu điều hướng. |
 
 ---
 
@@ -32,8 +32,11 @@
 | FID-ERP-010 | (xem `FID_LIST.md`) | CHƯA VIẾT | Sticker — đang chờ Andy cần biết loại máy in trước, "note để sau" 2026-09-19 (xem Mục 4 #17). |
 | [FID-ERP-012](../features/FID-ERP-012_20260917.md) | Báo cáo sản xuất Xưởng | ✅ DONE (2026-09-19) | Sản lượng tính theo TỪNG MÁY rồi cộng dồn. Công thức rework (chốt hướng ở FID-ERP-007 §8, viết chính thức vào FID-012 v1.3): so khớp TUYỆT ĐỐI `traveler_no`+`created_at` với dòng `RETURN` để nhận diện SELECT/SCRAP của lần rework — SELECT loại hẳn (không cộng), SCRAP trừ khỏi sản lượng. Viết Mục 5 SAI 1 lần lúc đầu (chỉ nói "trừ SCRAP", quên "loại SELECT") — Andy hỏi lại số cụ thể mới lộ ra, đã sửa TRƯỚC khi code. `finished_goods_awaiting_shipment` cố ý không scope theo kỳ → phát hiện đây là truy vấn global DUY NHẤT trong test suite, phải thêm `fileParallelism:false` vào `vitest.config.mts` để tránh race giữa các file test. |
 | [FID-ERP-013](../features/FID-ERP-013_20260919.md) | Migration từ AVP_AI | DRAFT (cơ chế đã code+test 2026-09-19) | Đọc trực tiếp code AVP_AI thật (`route.ts` từng khâu + `BRS_TRS.md`) để lấy đúng tên cột 5 tab — không đoán. Viết xong 6 câu hỏi mở (Mục 0) cho Andy trước khi APPROVED migrate LỊCH SỬ THẬT. Andy trả lời "code" rồi làm rõ "khg cần trước mắt lày data mới làm thử" → hiểu là dựng CƠ CHẾ (5 hàm migrate + quarantine + idempotent) và test bằng dữ liệu MẪU giả lập trước, CHƯA cần quyết 6 câu hỏi/CSV thật ngay. 19 test mới PASS, Status file VẪN GIỮ DRAFT (không tự APPROVED khi chưa trả lời đủ Mục 0). |
+| [FID-ERP-014](../features/FID-ERP-014_20260919.md) | Thiết kế UI — menu + trang chủ + đồng bộ 8 trang + responsive | ✅ DONE (2026-09-19) | Andy tự demo local, thấy trang chủ vẫn template Next.js mặc định + không có menu → yêu cầu tham khảo Odoo/Zoho, viết FID, trả lời hết Mục 0 qua chat (bao gồm đổi ý giữa chừng: "đồng bộ luôn 8 trang" thay vì tách 2 giai đoạn, "có cần responsive" đổi từ không→có vì quản lý xem báo cáo qua điện thoại). NavBar nhóm Nhập liệu/Báo cáo lọc theo `isStationAllowed` (không đổi phân quyền FID-011). Trang chủ: Search trọng tâm + "Việc cần làm" (gọi thẳng lib report, không API mới) + danh sách link. `tokens.ts`+`PageContainer` đồng bộ khung/màu 8 trang cũ — CHỈ đổi trình bày, không đổi logic (154 test cũ PASS y hệt). **Kiểm chứng bằng Puppeteer thật (cài tạm `--no-save`, gỡ ngay sau)** — phát hiện 1 lỗi thật qua ảnh chụp (2 ô search chồng nhau ở trang chủ) mà đọc code không thấy, sửa bằng `SearchBarSlot.tsx`. |
 
 **Việc khác đã làm 2026-09-17**: dọn ~50 file kế thừa khung ISO_CA (xoá 6 file thừa, viết lại ~30 file docs/cl0X); chốt kiến trúc 3 máy cố định + 1 laptop admin, 2 cổng AI (Office+Admin), Xưởng không AI; viết `ODOO_COMPARISON.md` (9 khía cạnh khác Odoo chuẩn).
+
+**Dữ liệu DEMO đã nạp vào database DEV (`avp_erp`, KHÔNG phải `avp_erp_test`) 2026-09-19** — Andy yêu cầu "lấy bộ hồ sơ của AVP làm mẫu" để test thử app local: 1 hồ sơ THẬT lấy từ `Data/4.WRAPPING/Wrapping_final.xlsm` (sheet `WORK ORDER` + `CHECKING SUMMARY`) + `Data/3.FINISHED PALLET/FINISHED PALLET REPORT_final.xlsm` (sheet `PartControl`) — **Traveler `718779`**, Part# `40073474` (150 pcs/box, Infasco), PO `194081`, Pot# `1768`, RECEIVE=5362, SELECT=4800 (máy TBL2, NV 391, ca chiều), SCRAP=1 (lý do MIXED), PACK=4800/32 thùng, Lot `6-259-07-C`, Skid# `SKID# 77`, **CHƯA Ship** (cố tình để Andy tự test nốt `/packing/new`). Đây là số THẬT, không bịa — nhưng vẫn là dữ liệu DEMO/thử nghiệm, KHÔNG phải hàng thật đang chạy qua hệ thống. Nếu dọn database dev sau này, nhớ traveler này KHÔNG xoá được thẳng (stock_moves append-only) — phải tính vào khi làm FID-ERP-013 migrate thật (loại trừ hoặc coi là 1 ca thật luôn).
 
 **Tài liệu theo dõi tiến độ**: artifact `https://claude.ai/artifact/F6or9LJ6Ef3h17TdX1BAwq` (đã cập nhật liên tục theo tiến độ) + `docs/records/AVP_ERP Infrastructure.pdf` (Andy tự export bản tĩnh khi cần).
 
@@ -62,6 +65,10 @@
 | Admin (Máy 4, Giám đốc/Quản lý) = ĐÚNG BẰNG bộ quyền Office — KHÔNG tự nhập liệu Xưởng (SELECT/Wrapping), chỉ xem/báo cáo | Andy xác nhận trực tiếp 2026-09-19 — KHÔNG phải "superset tuyệt đối" như mô tả gốc SOFTWARE_ARCHITECTURE.md §2.1 ngụ ý, xem FID-ERP-011 §8 |
 | Test suite (`vitest`) chạy TUẦN TỰ (`fileParallelism: false`), không chạy song song nhiều file | Phát sinh khi viết FID-ERP-012 — `finished_goods_awaiting_shipment` là truy vấn KHÔNG scope theo ngày/traveler (đúng thiết kế, đọc toàn bộ `stock_moves`), chạy song song với file test khác gây race/nhiễu số liệu. Suite còn nhỏ (135 test, ~5s tuần tự) nên đánh đổi được, xem FID-ERP-012 Mục 10 |
 | FID-ERP-013 (migration): dựng CƠ CHẾ + test bằng dữ liệu MẪU TRƯỚC, migrate dữ liệu lịch sử THẬT để SAU (2 giai đoạn tách biệt) | Andy xác nhận 2026-09-19 ("khg cần trước mắt lày data mới làm thử") — Status FID-013 vẫn DRAFT, không tự APPROVED chỉ vì cơ chế đã chạy được với data giả lập; migrate thật vẫn cần Andy trả lời Mục 0 (6 câu hỏi) trước |
+| Giao diện ĐỒNG BỘ STYLE cho mọi trạm (menu/màu/khung), nhưng phân quyền ROUTE vẫn theo trạm (FID-ERP-011 không đổi) | Andy hỏi "sao không làm chung cho AVP_ERP đồng bộ" nhưng làm rõ ngay đây là đồng bộ GIAO DIỆN, không phải bỏ phân quyền — 2026-09-19, xem FID-ERP-014 Mục 0 |
+| Trang chủ đưa SEARCH làm trọng tâm số 1 (to nhất, đầu tiên), không phải dashboard/link list | Andy: "nhu cầu của user luôn tìm kiếm thông tin... màn hình ngay từ đầu phải là search all" — 2026-09-19, xem FID-ERP-014 Mục 0/4c |
+| Ý tưởng "scan tự nhận diện loại chứng từ" + "inbox lưu email PO trước khi duyệt" — GHI NHẬN để dành, KHÔNG sửa FID-ERP-002 (giữ nguyên thiết kế đã DONE) | Andy nêu ý tưởng rồi tự chốt "vậy theo thiết kế đã done" — 2026-09-19, xem FID-ERP-014 Mục 0 |
+| AVP_ERP cần responsive di động (đảo ngược quyết định ban đầu "3 máy cố định không cần") | Andy: quản lý muốn xem báo cáo từ điện thoại được — 2026-09-19, xem FID-ERP-014 Mục 0 #5 |
 
 ---
 
@@ -95,18 +102,25 @@
 **FID-ERP-012 đã commit LOCAL** (`fcfe437`, Andy xác nhận qua chat) —
 CHƯA push lên GitHub (chưa ai hỏi push).
 
-**FID-ERP-013 CHƯA COMMIT** (2026-09-19, cuối phiên SES-20260919-007) —
-cơ chế migrate + 19 test bằng data mẫu xong (154/154 test PASS, lint
-sạch, build sạch) nhưng đang CHỜ Andy xác nhận trước khi commit (đúng quy
-tắc CLAUDE.md). File thay đổi/mới:
-`docs/features/FID-ERP-013_20260919.md` (mới, Status DRAFT — Mục 0 câu
-hỏi + Mục 10 THỰC HIỆN), `docs/features/FID-ERP-001_20260917.md` (v1.12
-— bảng `migration_quarantine`), `docs/features/FID_LIST.md`,
-`CHANGELOG.md`, `docs/records/LATEST_SESSION.md`,
-`webapp/prisma/schema.prisma` + `webapp/prisma/migrations/20260919145617_add_migration_quarantine/`
-(mới), `webapp/lib/migrate/{types,csv,dates,legacyLot,migrate}.ts` (mới),
-`webapp/scripts/migrate/{audit,run,reconcile}.ts` (mới),
-`webapp/tests/integration/migrate.test.ts` (mới, 19 test).
+**FID-ERP-013 (cơ chế) đã commit LOCAL** (`58ec75c`, Andy xác nhận qua
+chat) — CHƯA push.
+
+**FID-ERP-014 CHƯA COMMIT** (2026-09-19, cuối phiên SES-20260919-008) —
+menu điều hướng + trang chủ + đồng bộ 8 trang + responsive xong (160/160
+test PASS, lint sạch, build sạch, kiểm chứng bằng ảnh chụp trình duyệt
+thật) nhưng đang CHỜ Andy xác nhận trước khi commit. File thay đổi/mới:
+`docs/features/FID-ERP-014_20260919.md` (mới, Status DONE — Mục 0 câu
+hỏi + Mục 10 THỰC HIỆN), `docs/features/FID_LIST.md`, `CHANGELOG.md`,
+`docs/records/LATEST_SESSION.md`,
+`webapp/lib/ui/{tokens,navLinks}.ts` (mới),
+`webapp/components/{PageContainer,NavBar,NavBarClient,SearchBarSlot}.tsx`
++ `.module.css` liên quan (mới), `webapp/app/api/auth/me/route.ts` (mới),
+`webapp/app/layout.tsx` + `webapp/app/page.tsx` (viết lại),
+`webapp/components/GlobalSearchBar.tsx` (thêm prop `size`),
+8 trang nghiệp vụ cũ (`capture`/`factory/select`/`wrapping/check`/
+`lot/update`/`packing/new`/`reports/po-progress`/`reports/production`/
+`login`, chỉ đổi khung/màu, xem FID-ERP-014 Mục 10),
+`webapp/tests/integration/auth.test.ts` (thêm 6 test).
 
 **Việc chưa dứt điểm cần lưu ý phiên sau**: FID-ERP-013 mới xong PHẦN
 CƠ CHẾ (test bằng data giả lập) — việc MIGRATE DỮ LIỆU LỊCH SỬ THẬT từ
@@ -139,9 +153,9 @@ ca892fd docs: draft FID-ERP-003 v1.1 + schema v1.5 (thêm REWORK)
 
 ### 6. KẾ HOẠCH PHIÊN SAU
 
-**Ưu tiên 0 — xác nhận + commit FID-ERP-013** (chưa commit, xem Mục 5) —
+**Ưu tiên 0 — xác nhận + commit FID-ERP-014** (chưa commit, xem Mục 5) —
 Andy xem lại nội dung/code rồi xác nhận commit hay không. Push cả
-`fcfe437` (FID-ERP-012) lên GitHub nếu Andy đồng ý.
+`fcfe437`/`58ec75c` (FID-ERP-012/013) lên GitHub nếu Andy đồng ý.
 
 **Ưu tiên 1 — quyết 6 câu hỏi FID-ERP-013 Mục 0** (khi Andy sẵn sàng
 migrate dữ liệu lịch sử THẬT, không phải ngay phiên tới nếu chưa cần):
@@ -164,4 +178,4 @@ máy in, xem Mục 4 #17) — bỏ qua nếu chưa có thông tin.
 
 ---
 
-*Session Report — viết lại đầy đủ 2026-09-18 (gộp lịch sử chi tiết theo FID vào bảng Mục 2 — chi tiết đầy đủ từng quyết định/lệch kế hoạch nằm trong Mục 10 "THỰC HIỆN" của từng file FID tương ứng, không lặp lại ở đây để tránh trôi dạt giữa 2 nơi mô tả cùng 1 việc). Kết thúc phiên SES-20260919-007 (2026-09-19): FID-ERP-012 DONE + commit local `fcfe437` (chưa push); FID-ERP-013 DRAFT — cơ chế migrate code+test xong bằng data mẫu (154/154 test PASS), migrate lịch sử THẬT còn chờ Andy trả lời Mục 0 — CHƯA commit, chờ Andy xác nhận (xem Mục 5).*
+*Session Report — viết lại đầy đủ 2026-09-18 (gộp lịch sử chi tiết theo FID vào bảng Mục 2 — chi tiết đầy đủ từng quyết định/lệch kế hoạch nằm trong Mục 10 "THỰC HIỆN" của từng file FID tương ứng, không lặp lại ở đây để tránh trôi dạt giữa 2 nơi mô tả cùng 1 việc). Kết thúc phiên SES-20260919-008 (2026-09-19): FID-ERP-012+013(cơ chế) DONE + commit local `fcfe437`/`58ec75c` (chưa push); FID-ERP-014 (UI) DONE — menu+trang chủ+đồng bộ 8 trang+responsive, 160/160 test PASS, kiểm chứng bằng ảnh chụp trình duyệt thật — CHƯA commit, chờ Andy xác nhận (xem Mục 5). Đã nạp 1 hồ sơ DEMO thật (traveler 718779) vào database dev để test UI (xem Mục 2).*

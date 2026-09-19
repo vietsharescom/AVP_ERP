@@ -5,6 +5,8 @@
 // thẳng 1 SELECT + 0..n SCRAP (defect) + 0..1 REWORK (còn dùng được, tạm
 // giữ chờ xử lý lại) trong 1 transaction ở server.
 import { useEffect, useState } from "react";
+import PageContainer from "../../../components/PageContainer";
+import { tokens } from "../../../lib/ui/tokens";
 
 type DefectType = { code: string; label: string };
 type DefectRow = { reasonCode: string; qty: number | null };
@@ -99,7 +101,7 @@ export default function FactorySelectPage() {
   }
 
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
+    <PageContainer>
       <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>🏭 Nhập liệu máy lựa — Xưởng</h1>
       <p style={{ fontSize: 13, color: "#666", marginBottom: 16 }}>
         Chỉ dùng tại Xưởng — không có bước quét file/OCR ở trang này.
@@ -198,8 +200,8 @@ export default function FactorySelectPage() {
         disabled={!canSubmit}
         style={{
           padding: "8px 16px",
-          background: canSubmit ? "#15803d" : "#9ca3af",
-          color: "#fff",
+          background: canSubmit ? tokens.color.accent : "#9ca3af",
+          color: tokens.color.accentText,
           border: "none",
           borderRadius: 6,
           cursor: canSubmit ? "pointer" : "not-allowed",
@@ -207,6 +209,6 @@ export default function FactorySelectPage() {
       >
         {saving ? "Đang lưu..." : "Xác nhận & Lưu"}
       </button>
-    </main>
+    </PageContainer>
   );
 }

@@ -6,6 +6,8 @@
 // v1.1 — thêm PACK (đóng thùng): số thùng + tổng qty + Skid# + máy/ca —
 // dữ liệu thật (CHECKING SUMMARY) ghi cùng lúc với Good/Hold.
 import { useState } from "react";
+import PageContainer from "../../../components/PageContainer";
+import { tokens } from "../../../lib/ui/tokens";
 
 type Status = "GOOD" | "HOLD";
 type RejectRow = { reasonCode: string; qty: number | null };
@@ -115,7 +117,7 @@ export default function WrappingCheckPage() {
   }
 
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
+    <PageContainer>
       <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>📦 Kiểm tra Wrapping</h1>
       <p style={{ fontSize: 13, color: "#666", marginBottom: 16 }}>
         Kiểm tra skid trước khi cho phép tạo Packing Slip — Good/Hold + lỗi phát hiện thêm (nếu có).
@@ -251,8 +253,8 @@ export default function WrappingCheckPage() {
         disabled={!canSubmit}
         style={{
           padding: "8px 16px",
-          background: canSubmit ? "#15803d" : "#9ca3af",
-          color: "#fff",
+          background: canSubmit ? tokens.color.accent : "#9ca3af",
+          color: tokens.color.accentText,
           border: "none",
           borderRadius: 6,
           cursor: canSubmit ? "pointer" : "not-allowed",
@@ -260,6 +262,6 @@ export default function WrappingCheckPage() {
       >
         {saving ? "Đang lưu..." : "Xác nhận & Lưu"}
       </button>
-    </main>
+    </PageContainer>
   );
 }

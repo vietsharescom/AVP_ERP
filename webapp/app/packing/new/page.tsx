@@ -4,6 +4,8 @@
 // (lookup, không ghi DB) → xem lại nháp (client-side) → Duyệt PS (confirm,
 // ghi PS+lines+SHIP trong 1 transaction).
 import { useState } from "react";
+import PageContainer from "../../../components/PageContainer";
+import { tokens } from "../../../lib/ui/tokens";
 
 type LookupResult = {
   travelerNo: string;
@@ -109,7 +111,7 @@ export default function NewPackingSlipPage() {
   }
 
   return (
-    <main style={{ maxWidth: 780, margin: "0 auto", padding: 24 }}>
+    <PageContainer>
       <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>🚚 Lập Packing Slip</h1>
       <p style={{ fontSize: 13, color: "#666", marginBottom: 16 }}>
         Chỉ thêm được Traveler đã đóng gói (PACK) + đủ điều kiện xuất (Good/Concession, Lot thật/Concession).
@@ -232,8 +234,8 @@ export default function NewPackingSlipPage() {
         disabled={!canConfirm}
         style={{
           padding: "8px 16px",
-          background: canConfirm ? "#15803d" : "#9ca3af",
-          color: "#fff",
+          background: canConfirm ? tokens.color.accent : "#9ca3af",
+          color: tokens.color.accentText,
           border: "none",
           borderRadius: 6,
           cursor: canConfirm ? "pointer" : "not-allowed",
@@ -241,6 +243,6 @@ export default function NewPackingSlipPage() {
       >
         {saving ? "Đang duyệt..." : "Duyệt PS"}
       </button>
-    </main>
+    </PageContainer>
   );
 }

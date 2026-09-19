@@ -3,6 +3,7 @@
 // FID-ERP-006 — dán nguyên văn email Infasco, tách cặp Traveler#+Lot#
 // bằng regex (KHÔNG AI), xem lại rồi xác nhận cập nhật hàng loạt.
 import { useState } from "react";
+import PageContainer from "../../../components/PageContainer";
 
 type Match = { travelerNo: string; lotNo: string };
 
@@ -95,7 +96,7 @@ export default function LotUpdatePage() {
   }
 
   return (
-    <main style={{ maxWidth: 780, margin: "0 auto", padding: 24 }}>
+    <PageContainer>
       <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>📧 Cập nhật Lot thật từ email</h1>
       <p style={{ fontSize: 13, color: "#666", marginBottom: 16 }}>
         Dán nguyên văn email Infasco — hệ thống tự tách cặp Traveler#+Lot# (không dùng AI).
@@ -191,6 +192,6 @@ export default function LotUpdatePage() {
           <button onClick={submitConcession}>Lưu</button>
         </div>
       </section>
-    </main>
+    </PageContainer>
   );
 }

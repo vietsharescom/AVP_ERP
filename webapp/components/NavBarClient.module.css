@@ -1,0 +1,95 @@
+.nav {
+  width: 100%;
+}
+
+.bar {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 8px 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.toggle {
+  display: none;
+  font-size: 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.groups {
+  display: flex;
+  gap: 24px;
+  flex: 1;
+}
+
+.group {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.groupTitle {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #999;
+}
+
+.link {
+  font-size: 14px;
+  color: #111;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logout {
+  font-size: 13px;
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .bar {
+    padding: 8px 12px;
+    flex-wrap: wrap;
+  }
+
+  .toggle {
+    display: block;
+  }
+
+  .groups {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    order: 3;
+    padding-top: 8px;
+  }
+
+  .groupsOpen {
+    display: flex;
+  }
+
+  .group {
+    flex-direction: column;
+    gap: 4px;
+  }
+}

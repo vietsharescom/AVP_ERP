@@ -1,6 +1,6 @@
 # FID_LIST.md — Master Feature Intent Document Index (AVP_ERP)
 # Kế hoạch làm việc — greenfield, Postgres + TypeScript
-# Ngày lập: 2026-09-17 | Trạng thái (2026-09-19): FID-ERP-001→009+011+012 DONE, FID-ERP-013 DRAFT (chờ Andy trả lời Mục 0), FID-ERP-010 CHƯA VIẾT (chờ máy in)
+# Ngày lập: 2026-09-17 | Trạng thái (2026-09-19): FID-ERP-001→009+011+012+014 DONE, FID-ERP-013 DRAFT (chờ Andy trả lời Mục 0), FID-ERP-010 CHƯA VIẾT (chờ máy in)
 
 ---
 
@@ -54,6 +54,7 @@ mục "LAYER":
 | 11 | [FID-ERP-011](FID-ERP-011_20260919.md) | Phân quyền theo trạm | Cả 4 điểm truy cập | — (MỚI, AVP_AI không có khái niệm nhiều trạm vật lý) | **✅ DONE — code xong (2026-09-19)** | Phân quyền THEO TÍNH NĂNG đã chốt (sửa 2026-09-17) — `SOFTWARE_ARCHITECTURE.md` §2.1. Đăng nhập THEO TRẠM (không phải người dùng cá nhân) — mật khẩu chung mỗi trạm, `checkedBy`/`operatorCode`/`confirmedBy` vẫn TEXT tự do (2 lớp độc lập). Admin = ĐÚNG BẰNG quyền Office (không làm Xưởng). Dùng `webapp/proxy.ts` (Next.js 16 đổi tên từ Middleware) |
 | 12 | [FID-ERP-012](FID-ERP-012_20260917.md) | Báo cáo sản xuất Xưởng (dashboard) | Xưởng + Office + **Máy 4 (admin)** | — (MỚI, AVP_AI chưa có report dạng biểu đồ tổng hợp) | **✅ DONE — code xong (2026-09-19)** | SQL `GROUP BY` thật. Công thức rework (chốt ở FID-ERP-007 §8): SELECT/SCRAP đi kèm RETURN cùng transaction (so khớp `traveler_no`+`created_at` tuyệt đối) → SELECT loại hẳn, SCRAP trừ khỏi sản lượng. `finished_goods_awaiting_shipment` cố ý KHÔNG scope theo kỳ (trạng thái hiện tại) |
 | 13 | [FID-ERP-013](FID-ERP-013_20260919.md) | Migration dữ liệu lịch sử từ AVP_AI | Máy 1 (Server, chạy 1 lần) | — (MỚI — phát hiện thiếu khi phản biện `docs/records/Consultations/260917-Pilot_Infra.md`) | **DRAFT — CƠ CHẾ đã code+test bằng data mẫu (154/154 PASS), MIGRATE THẬT chờ Andy trả lời Mục 0** | `webapp/lib/migrate/*` (5 hàm migrate + quarantine + idempotent) đã code, test bằng traveler#/Part# giả lập theo yêu cầu Andy ("trước mắt lấy data mới làm thử"). 3 script CLI (`audit/run/reconcile.ts`) viết xong, CHƯA chạy trên CSV thật. 6 câu hỏi mở ở Mục 0 (cách lấy CSV, mốc cắt, `reject` không có `reasonCode`, `totalPallets/Empty` mặc định 0, ưu tiên Lot, thời điểm chạy) vẫn CHƯA trả lời — Status giữ DRAFT |
+| 14 | [FID-ERP-014](FID-ERP-014_20260919.md) | Thiết kế UI thống nhất — menu + trang chủ + đồng bộ 8 trang + responsive | Cả 3 điểm truy cập | — (MỚI — Andy tự demo local 2026-09-19, phát hiện chưa có menu/trang chủ; tham khảo Odoo/Zoho) | **✅ DONE — code xong (2026-09-19)** | NavBar nhóm "Nhập liệu"/"Báo cáo" (mô hình Odoo) lọc theo `isStationAllowed` (FID-ERP-011, không viết bảng riêng). Trang chủ: Search trọng tâm + "Việc cần làm" (mô hình Zoho Pending Actions, gọi thẳng lib report có sẵn) + danh sách link. Đồng bộ khung/màu (`tokens.ts`+`PageContainer`) cho cả 8 trang cũ (trước lệch `maxWidth` 960/780/720/360) — CHỈ đổi trình bày, không đổi logic (154 test cũ PASS y hệt). Responsive di động. Kiểm chứng bằng Puppeteer thật — phát hiện+sửa lỗi 2 ô search chồng nhau ở trang chủ |
 
 *FID-006 (Unbuild/Tháo rã) của AVP_AI — vẫn BLOCKED, chưa đưa vào kế
 hoạch AVP_ERP vì cùng lý do: chưa xác nhận có xảy ra thật.*

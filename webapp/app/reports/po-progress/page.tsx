@@ -4,6 +4,7 @@
 // còn tồn đọng; form set/sửa ngày bắt đầu-kết thúc theo dõi (nhân viên
 // tự nhập, không OCR/không tự suy đoán).
 import { useEffect, useState } from "react";
+import PageContainer from "../../../components/PageContainer";
 
 type ReworkTraveler = { travelerNo: string; reworkOfPsNo: string | null; reworkOfLotNo: string | null };
 
@@ -110,7 +111,7 @@ export default function PoProgressPage() {
   }
 
   return (
-    <main style={{ maxWidth: 780, margin: "0 auto", padding: 24 }}>
+    <PageContainer>
       <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>📋 Báo cáo đối chiếu PO</h1>
       <p style={{ fontSize: 13, color: "#666", marginBottom: 16 }}>
         Theo từng PO — bao nhiêu Traveler đã xong (SHIP), còn tồn đọng, và Traveler nào đang rework.
@@ -151,6 +152,6 @@ export default function PoProgressPage() {
           </button>
         </div>
       </section>
-    </main>
+    </PageContainer>
   );
 }

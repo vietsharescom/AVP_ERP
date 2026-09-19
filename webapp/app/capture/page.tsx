@@ -6,6 +6,8 @@
 // UX tương đương CaptureGate.tsx + TravelerSection.tsx (AVP_AI, đọc THAM
 // KHẢO) — 2 đích đến, draft OCR để xem lại trước khi Xác nhận & Lưu.
 import { useState } from "react";
+import PageContainer from "../../components/PageContainer";
+import { tokens } from "../../lib/ui/tokens";
 
 type Destination = "po" | "warehouse";
 
@@ -133,7 +135,7 @@ export default function CapturePage() {
   }
 
   return (
-    <main style={{ maxWidth: 960, margin: "0 auto", padding: 24 }}>
+    <PageContainer>
       <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>📷 Quét/chụp — lưu vào đâu?</h1>
       <p style={{ fontSize: 13, color: "#666", marginBottom: 16 }}>
         Chỉ dùng cho Office / Máy admin — Xưởng không có quyền dùng trang này.
@@ -290,8 +292,8 @@ export default function CapturePage() {
           disabled={!canConfirm}
           style={{
             padding: "8px 16px",
-            background: canConfirm ? "#15803d" : "#9ca3af",
-            color: "#fff",
+            background: canConfirm ? tokens.color.accent : "#9ca3af",
+            color: tokens.color.accentText,
             border: "none",
             borderRadius: 6,
             cursor: canConfirm ? "pointer" : "not-allowed",
@@ -300,6 +302,6 @@ export default function CapturePage() {
           {saving ? "Đang lưu..." : `Xác nhận & Lưu ${rows.length} dòng`}
         </button>
       )}
-    </main>
+    </PageContainer>
   );
 }

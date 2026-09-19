@@ -19,6 +19,8 @@ import {
 } from "../../lib/auth";
 import { POST as loginPOST } from "../../app/api/auth/login/route";
 import { POST as logoutPOST } from "../../app/api/auth/logout/route";
+import { GET as meGET } from "../../app/api/auth/me/route";
+import { filterNavGroups } from "../../lib/ui/navLinks";
 
 function asNextRequest(req: Request): NextRequest {
   return req as unknown as NextRequest;
@@ -143,5 +145,62 @@ describe("FID-ERP-011 — POST /api/auth/logout", () => {
     const data = await res.json();
     expect(data.ok).toBe(true);
     expect(res.headers.get("set-cookie")).toContain("Max-Age=0");
+  });
+});
+
+// FID-ERP-014 §4b/§7 — GET /api/auth/me, dùng cho NavBar/trang chủ.
+function meRequest(cookieValue?: string) {
+  return asNextRequest(
+    new Request("http://localhost/api/auth/me", {
+      headers: cookieValue ? { cookie: `${COOKIE_NAME}=${encodeURIComponent(cookieValue)}` } : {},
+    }),
+  );
+}
+
+describe("FID-ERP-014 — GET /api/auth/me", () => {
+  it("chưa đăng nhập -> { ok: true, station: null }", async () => {
+    const res = await meGET(meRequest());
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data).toEqual({ ok: true, station: null });
+  });
+
+  it("đã đăng nhập FACTORY -> { ok: true, station: 'FACTORY' }", async () => {
+    const res = await meGET(meRequest(createSessionCookieValue("FACTORY")));
+    const data = await res.json();
+    expect(data).toEqual({ ok: true, station: "FACTORY" });
+  });
+
+  it("cookie giả mạo -> station: null (không 500)", async () => {
+    const res = await meGET(meRequest("ADMIN.gia-mao"));
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.station).toBeNull();
+  });
+});
+
+// FID-ERP-014 §4a/§7 — filterNavGroups (NavBar + trang chủ dùng chung).
+describe("FID-ERP-014 — lib/ui/navLinks: filterNavGroups", () => {
+  it("OFFICE -> chỉ nhóm Nhập liệu (không Trạm Xưởng/Wrapping) + nhóm Báo cáo đủ 2 link", () => {
+    const groups = filterNavGroups("OFFICE");
+    const nhapLieu = groups.find((g) => g.title === "Nhập liệu");
+    const baoCao = groups.find((g) => g.title === "Báo cáo");
+    expect(nhapLieu?.links.map((l) => l.path)).toEqual([
+      "/capture",
+      "/lot/update",
+      "/packing/new",
+    ]);
+    expect(baoCao?.links).toHaveLength(2);
+  });
+
+  it("FACTORY -> nhóm Nhập liệu chỉ còn Trạm Xưởng+Wrapping, KHÔNG có nhóm Báo cáo (rỗng sau lọc -> ẩn cả nhóm)", () => {
+    const groups = filterNavGroups("FACTORY");
+    const nhapLieu = groups.find((g) => g.title === "Nhập liệu");
+    expect(nhapLieu?.links.map((l) => l.path)).toEqual(["/factory/select", "/wrapping/check"]);
+    expect(groups.find((g) => g.title === "Báo cáo")).toBeUndefined();
+  });
+
+  it("ADMIN = đúng bằng OFFICE (xem FID-ERP-011)", () => {
+    expect(filterNavGroups("ADMIN")).toEqual(filterNavGroups("OFFICE"));
   });
 });

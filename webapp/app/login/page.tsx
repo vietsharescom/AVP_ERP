@@ -4,6 +4,8 @@
 // nhân). Đăng nhập xong → về trang chủ.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import PageContainer from "../../components/PageContainer";
+import { tokens } from "../../lib/ui/tokens";
 
 type Station = "OFFICE" | "FACTORY" | "ADMIN";
 
@@ -41,9 +43,9 @@ export default function LoginPage() {
   }
 
   return (
-    <main style={{ maxWidth: 360, margin: "80px auto", padding: 24 }}>
+    <PageContainer maxWidth={360} style={{ margin: "80px auto" }}>
       <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 16 }}>🔒 Đăng nhập AVP_ERP</h1>
-      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
+      {error && <p style={{ color: tokens.color.danger }}>{error}</p>}
       <label style={{ display: "block", marginBottom: 12 }}>
         Trạm
         <select value={station} onChange={(e) => setStation(e.target.value as Station)} style={{ display: "block", width: "100%" }}>
@@ -64,9 +66,20 @@ export default function LoginPage() {
           style={{ display: "block", width: "100%" }}
         />
       </label>
-      <button onClick={submit} disabled={loading || password === ""}>
+      <button
+        onClick={submit}
+        disabled={loading || password === ""}
+        style={{
+          padding: "8px 16px",
+          background: loading || password === "" ? "#9ca3af" : tokens.color.accent,
+          color: tokens.color.accentText,
+          border: "none",
+          borderRadius: 6,
+          cursor: loading || password === "" ? "not-allowed" : "pointer",
+        }}
+      >
         {loading ? "Đang đăng nhập..." : "Đăng nhập"}
       </button>
-    </main>
+    </PageContainer>
   );
 }

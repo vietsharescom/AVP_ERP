@@ -1,0 +1,16 @@
+/* FID-ERP-014 — khung trang dùng chung, responsive cho màn hình hẹp
+   (điện thoại). Ngưỡng khớp `tokens.breakpointMobile` (640px) — nếu đổi
+   giá trị đó, sửa luôn số ở đây (CSS không đọc được TS token). */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .container {
+    max-width: 100%;
+    padding: 12px;
+  }
+}
