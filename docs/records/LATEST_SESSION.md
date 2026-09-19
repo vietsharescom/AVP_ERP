@@ -97,30 +97,22 @@
 
 ### 5. GIT
 
-Đã `init` + push từ 2026-09-18 (Andy tự làm qua PowerShell). Remote: **`https://github.com/vietsharescom/AVP_ERP.git`**, branch `main`. Quy tắc "không commit/push khi chưa xác nhận" (CLAUDE.md, global) áp dụng — mỗi lần commit trong phiên này đều đã hỏi Andy trước.
+Đã `init` + push từ 2026-09-18 (Andy tự làm qua PowerShell). Remote: **`https://github.com/vietsharescom/AVP_ERP.git`**, branch `main`. Quy tắc "không commit/push khi chưa xác nhận" (CLAUDE.md, global) áp dụng — mỗi lần commit/push trong phiên này đều đã hỏi Andy trước.
 
-**FID-ERP-012 đã commit LOCAL** (`fcfe437`, Andy xác nhận qua chat) —
-CHƯA push lên GitHub (chưa ai hỏi push).
-
-**FID-ERP-013 (cơ chế) đã commit LOCAL** (`58ec75c`, Andy xác nhận qua
-chat) — CHƯA push.
-
-**FID-ERP-014 CHƯA COMMIT** (2026-09-19, cuối phiên SES-20260919-008) —
-menu điều hướng + trang chủ + đồng bộ 8 trang + responsive xong (160/160
-test PASS, lint sạch, build sạch, kiểm chứng bằng ảnh chụp trình duyệt
-thật) nhưng đang CHỜ Andy xác nhận trước khi commit. File thay đổi/mới:
-`docs/features/FID-ERP-014_20260919.md` (mới, Status DONE — Mục 0 câu
-hỏi + Mục 10 THỰC HIỆN), `docs/features/FID_LIST.md`, `CHANGELOG.md`,
-`docs/records/LATEST_SESSION.md`,
-`webapp/lib/ui/{tokens,navLinks}.ts` (mới),
-`webapp/components/{PageContainer,NavBar,NavBarClient,SearchBarSlot}.tsx`
-+ `.module.css` liên quan (mới), `webapp/app/api/auth/me/route.ts` (mới),
-`webapp/app/layout.tsx` + `webapp/app/page.tsx` (viết lại),
-`webapp/components/GlobalSearchBar.tsx` (thêm prop `size`),
-8 trang nghiệp vụ cũ (`capture`/`factory/select`/`wrapping/check`/
-`lot/update`/`packing/new`/`reports/po-progress`/`reports/production`/
-`login`, chỉ đổi khung/màu, xem FID-ERP-014 Mục 10),
-`webapp/tests/integration/auth.test.ts` (thêm 6 test).
+**Đã commit + PUSH hết** (2026-09-19, cuối phiên SES-20260919-008, Andy
+xác nhận "commit push") — working tree sạch, `main` local = `main` remote.
+3 commit đẩy lên đợt này (`f581367..5eb6f5f`):
+- `fcfe437` — FID-ERP-012 (Báo cáo sản xuất Xưởng)
+- `58ec75c` — FID-ERP-013 cơ chế migrate (CHƯA migrate dữ liệu thật, xem dưới)
+- `5eb6f5f` — FID-ERP-014 (menu + trang chủ + đồng bộ 8 trang + responsive),
+  file thay đổi: `docs/features/FID-ERP-014_20260919.md` (mới),
+  `webapp/lib/ui/{tokens,navLinks}.ts` (mới),
+  `webapp/components/{PageContainer,NavBar,NavBarClient,SearchBarSlot}.tsx`
+  + `.module.css` liên quan (mới), `webapp/app/api/auth/me/route.ts` (mới),
+  `webapp/app/layout.tsx` + `webapp/app/page.tsx` (viết lại),
+  `webapp/components/GlobalSearchBar.tsx` (thêm prop `size`), 8 trang
+  nghiệp vụ cũ (chỉ đổi khung/màu, xem FID-ERP-014 Mục 10),
+  `webapp/tests/integration/auth.test.ts` (thêm 6 test).
 
 **Việc chưa dứt điểm cần lưu ý phiên sau**: FID-ERP-013 mới xong PHẦN
 CƠ CHẾ (test bằng data giả lập) — việc MIGRATE DỮ LIỆU LỊCH SỬ THẬT từ
@@ -135,6 +127,10 @@ tự xoá (đóng Excel lại là tự mất), Claude không tự xoá.
 
 Lịch sử commit chính phiên này (mới nhất trước):
 ```
+5eb6f5f feat: Thiết kế UI thống nhất — menu+trang chủ+đồng bộ+responsive [FID-ERP-014]
+58ec75c feat: Cơ chế migration từ AVP_AI + migration_quarantine [FID-ERP-013]
+fcfe437 feat: Báo cáo sản xuất Xưởng [FID-ERP-012]
+f581367 docs: chốt báo cáo kết thúc phiên SES-20260919-005
 0d504bd feat: Phân quyền theo trạm — session/login đầu tiên [FID-ERP-011]
 d27ec8a feat: Packing Slip + sửa FID-ERP-005 thêm PACK/Skid# [FID-ERP-009][FID-ERP-005 v1.1]
 24b7ce6 feat: Rework/Return linkage (Pot#=GAYLORD) + Báo cáo đối chiếu PO [FID-ERP-007][FID-ERP-008]
@@ -153,10 +149,6 @@ ca892fd docs: draft FID-ERP-003 v1.1 + schema v1.5 (thêm REWORK)
 
 ### 6. KẾ HOẠCH PHIÊN SAU
 
-**Ưu tiên 0 — xác nhận + commit FID-ERP-014** (chưa commit, xem Mục 5) —
-Andy xem lại nội dung/code rồi xác nhận commit hay không. Push cả
-`fcfe437`/`58ec75c` (FID-ERP-012/013) lên GitHub nếu Andy đồng ý.
-
 **Ưu tiên 1 — quyết 6 câu hỏi FID-ERP-013 Mục 0** (khi Andy sẵn sàng
 migrate dữ liệu lịch sử THẬT, không phải ngay phiên tới nếu chưa cần):
 cách lấy CSV, mốc cắt (toàn bộ hay chỉ traveler chưa Shipped), xử lý
@@ -167,12 +159,19 @@ tiên Lot, thời điểm chạy — xem chi tiết FID-ERP-013 Mục 0.
 máy in, xem Mục 4 #17) — bỏ qua nếu chưa có thông tin.
 
 **Ưu tiên 3 — thử nghiệm thật (nếu Andy có thời gian)**:
-- Dán `GEMINI_API_KEY` thật vào `webapp/.env`, thử `/capture` với file mẫu thật (`Data/2. Traveler/TRAVELER SHEETS SEP 9.pdf`) — hiện tại toàn bộ 154 test đều mock Gemini, chưa ai xác nhận OCR thật hoạt động đúng.
-- Đăng nhập thật qua `/login` (3 trạm) — xác nhận middleware/proxy chặn đúng route theo trạm trên trình duyệt thật (test tự động mới chỉ phủ logic quyết định + defense-in-depth ở 2 route, CHƯA chạy `proxy.ts` thật qua Next.js server, xem FID-ERP-011 Mục 10).
-- Chạy thử luồng đầy đủ 1 Traveler qua tay: `/capture` (RECEIVE) → `/factory/select` (SELECT, tự sinh Lot placeholder) → `/wrapping/check` (Good/Hold + PACK/Skid#) → `/lot/update` (Lot thật) → `/packing/new` (lập + duyệt Packing Slip, ghi SHIP) → search bằng ô tìm ở đầu trang — xác nhận dữ liệu liên kết đúng qua toàn bộ vòng đời 1 Traveler.
+- Dán `GEMINI_API_KEY` thật vào `webapp/.env`, thử `/capture` với file mẫu thật (`Data/2. Traveler/TRAVELER SHEETS SEP 9.pdf`) — hiện tại toàn bộ 160 test đều mock Gemini, chưa ai xác nhận OCR thật hoạt động đúng.
+- ~~Đăng nhập thật qua `/login` (3 trạm) — xác nhận proxy chặn đúng route theo trạm trên trình duyệt thật~~ **ĐÃ XÁC NHẬN 2026-09-19** (kiểm chứng bằng Puppeteer lúc làm FID-ERP-014 — FACTORY/OFFICE đăng nhập thật, NavBar lọc đúng, `proxy.ts` chạy đúng qua Next.js server thật, không chỉ test logic thuần nữa).
+- Chạy thử luồng đầy đủ 1 Traveler qua tay: `/capture` (RECEIVE) → `/factory/select` (SELECT, tự sinh Lot placeholder) → `/wrapping/check` (Good/Hold + PACK/Skid#) → `/lot/update` (Lot thật) → `/packing/new` (lập + duyệt Packing Slip, ghi SHIP) → search bằng ô tìm ở đầu trang — xác nhận dữ liệu liên kết đúng qua toàn bộ vòng đời 1 Traveler. **Gợi ý**: dùng luôn traveler DEMO `718779` đã nạp sẵn (xem Mục 2) — mới dừng ở PACK, đang chờ đúng bước `/packing/new` để hoàn tất demo.
 - Thử luồng rework thật: `/capture` destination="po" với `potNo="GAYLORD"` → `/factory/select` lựa lại → `/reports/po-progress` xem `reworkTravelers` — xác nhận `RETURN` ghi đúng lúc lựa lại (FID-ERP-007).
 
 **Ưu tiên 4 — việc mở ở Mục 4** — không chặn code, xử lý khi Andy có thời gian/quyết định (đặc biệt mục 1, 6, 7, 11, 12, 13, 14, 15, 16, 17 ảnh hưởng thiết kế các FID sau).
+
+**Ưu tiên 5 — nếu Andy muốn tiếp tục việc UI để dành ở FID-ERP-014 Mục 0**:
+đồng bộ style/UX sâu hơn cho 8 trang (hiện chỉ đồng bộ khung/màu, chưa
+đồng bộ layout/form bên trong từng trang), làm nhẹ nhàng hơn cho di
+động (hiện chỉ đảm bảo không vỡ, chưa tối ưu UX riêng), hoặc mở lại 2 ý
+tưởng đã ghi để dành (scan tự nhận diện loại chứng từ, inbox lưu email
+PO) nếu Andy đổi ý muốn làm.
 
 **Khi bắt đầu phiên sau**: đọc file này (tự động) → nếu Mục 4 có gì Andy đã trả lời qua kênh khác (chat/note), cập nhật lại trước khi tiếp tục code.
 
