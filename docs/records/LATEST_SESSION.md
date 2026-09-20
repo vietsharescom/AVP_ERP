@@ -65,7 +65,7 @@ Andy bấm "Xác nhận & Lưu" lặp lại cho `716958` ở `/wrapping/check` �
 **SES-20260920-010 (đêm 2026-09-19 → 09-20)** — làm liên tục, Andy ngủ giữa chừng ("tự làm được tôi đi ngủ"):
 - **FID-ERP-003 v1.4 + v1.5** (`/factory/select`): scan Traveler# (scanner) tự điền Part/Lot/Pot/Pcs-per-Carton từ DB, Total tự tính, bố cục giống tờ giấy (xám = tự có, vàng = copy từ giấy), bảng defect liệt kê sẵn 11 dòng theo tờ (thêm `OTHERS` — FID-001 v1.13), nút "Lần trước" cho máy/người, scan Part# BẮT BUỘC (double check Traveler/Part, lệch → khoá Lưu). Chọn hướng KHÔNG OCR (giữ "Xưởng không AI").
 - **FID-ERP-005 v1.5** (`/wrapping/check`): tương tự + PACK mặc định bật khi còn hàng chưa đóng, "Đóng hết", bảng Reject liệt kê sẵn. Route mới `GET /api/quality/lookup`, `GET /api/factory/select/lookup`. Serial từng thùng vẫn là FID riêng (chờ 2 câu: tem 1 hay 3 barcode, máy scan).
-- **FID-ERP-013 v0.2 — CHẠY THỬ TOÀN BỘ dữ liệu thật** (Andy cho phép format DB dev): xem FID-013 Mục 11 + **`docs/records/DEMO_GUIDE.md`** (kịch bản demo, số liệu, snapshot restore, giới hạn). DB dev đã format + nạp 6.550 Traveler / 16.362 stock_moves / 203 PS; quarantine 246.
+- **FID-ERP-013 v0.2 — CHẠY THỬ TOÀN BỘ dữ liệu thật** (Andy cho phép format DB dev): xem FID-013 Mục 11 + **`docs/cl08_operation/DEMO_GUIDE.md`** (kịch bản demo, số liệu, snapshot restore, giới hạn). DB dev đã format + nạp 6.550 Traveler / 16.362 stock_moves / 203 PS; quarantine 246.
 - Kiểm chứng: 217/217 test · E2E HTTP 33/33 · UI Chrome bấm Lưu thật 20/20 · OCR Gemini thật 18/18 chứng từ (Part#/PO khớp 100%).
 - Bài học: (1) Prisma CLI chặn `migrate reset` từ AI trừ khi đặt `PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION` = nguyên văn lời user; (2) mỗi lần chạy trên dữ liệu thật lộ thêm lỗi mà test mẫu không thấy (Part# có hậu tố làm oan 2.047 Traveler, `STUCK TGT` làm mất ~25% sản xuất nếu quarantine cả dòng, PACK thiếu → "chờ xuất" luôn 0, ngày xuất `now()`), và focus `setTimeout` trước khi render (UI) — vẫn phải thử thật.
 
@@ -191,7 +191,7 @@ ca892fd docs: draft FID-ERP-003 v1.1 + schema v1.5 (thêm REWORK)
 
 ### 6. KẾ HOẠCH PHIÊN SAU
 
-**Ưu tiên 00 (sáng 2026-09-20) — Andy xem + quyết:** (1) đọc `docs/records/DEMO_GUIDE.md`, `npm run build` + `npx next start`, tự chạy thử kịch bản demo (Traveler `718085` → Xưởng → Wrapping → Packing Slip; PO `194141.pdf` cho Quét PO) và báo chỗ chưa ổn; (2) xác nhận commit/push (các file mới lớn: `Data/migration/*.csv`, `Data/backup/*.dump`); (3) 6 câu Mục 0 FID-013 — nay đã có số liệu thật để quyết; (4) Serial: tem 1 hay 3 barcode + loại máy scan; (5) ảnh giấy "WRAPPING SUMMARY" ở AVP_AI có cho đọc để khớp nhãn form Wrapping không; (6) loại máy in sticker (FID-010).
+**Ưu tiên 00 (sáng 2026-09-20) — Andy xem + quyết:** (1) đọc `docs/cl08_operation/DEMO_GUIDE.md`, `npm run build` + `npx next start`, tự chạy thử kịch bản demo (Traveler `718085` → Xưởng → Wrapping → Packing Slip; PO `194141.pdf` cho Quét PO) và báo chỗ chưa ổn; (2) xác nhận commit/push (các file mới lớn: `Data/migration/*.csv`, `Data/backup/*.dump`); (3) 6 câu Mục 0 FID-013 — nay đã có số liệu thật để quyết; (4) Serial: tem 1 hay 3 barcode + loại máy scan; (5) ảnh giấy "WRAPPING SUMMARY" ở AVP_AI có cho đọc để khớp nhãn form Wrapping không; (6) loại máy in sticker (FID-010).
 
 **Ưu tiên 0 — hoàn tất vòng đời traveler demo `718779`** (đang dở giữa phiên
 009): traveler này THIẾU dòng `quality_checks` (dữ liệu demo nạp SQL bỏ sót)

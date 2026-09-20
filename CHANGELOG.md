@@ -485,7 +485,7 @@
   `scripts/migrate/xlsx_to_csv.py` (mọi giả định ở `Data/migration/BUILD_REPORT.md`); `run/audit/reconcile.ts` nạp `.env`. 16 test
   mới (`migrate-v02.test.ts`) = **217/217 PASS**. Kiểm chứng đêm đó: E2E HTTP 3 trạm **33/33**, UI Chrome bấm Lưu thật **20/20**,
   smoke 9 trang + API, OCR Gemini thật 18/18 chứng từ (Part#/PO khớp 100%). Snapshot demo: `Data/backup/avp_erp_full_loaded_20260920.dump`;
-  hướng dẫn: `docs/records/DEMO_GUIDE.md`. Sửa nhỏ: nút "Lần trước" hiện máy/người/CHECKER dạng IN HOA (đúng dạng server sẽ lưu).
+  hướng dẫn: `docs/cl08_operation/DEMO_GUIDE.md`. Sửa nhỏ: nút "Lần trước" hiện máy/người/CHECKER dạng IN HOA (đúng dạng server sẽ lưu).
 - feat: kết quả tìm kiếm BẤM ĐƯỢC + trang chi tiết Traveler/PS/Part# [FID-ERP-015] — Andy: "khi search ra thì có thể click vào link của
   thông tin đó" (chọn A+B). Bấm Traveler: trang có ô Traveler# (`/factory/select`, `/wrapping/check`, `/packing/new`, `/lot/update`) tự điền +
   Tra (sự kiện `avp:pick-traveler` + hook `usePickTraveler`); trang khác mở `/view/traveler/<no>` (Part/PO/Pot/Lot/Skid, tổng theo loại, lịch sử
