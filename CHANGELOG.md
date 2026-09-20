@@ -438,3 +438,58 @@
   (tái dùng `/api/search`, FID-ERP-004) — `canSubmit` đòi đã tra ĐÚNG
   Traveler# đang gõ, đổi số thì phải tra lại. 2 test mới (cảnh báo trùng)
   + test cũ không hồi quy = **178/178 PASS**, lint sạch, build thành công.
+- feat: trạm Xưởng nhập nhanh — scan Traveler# tự điền từ DB + tự tính Total +
+  bố cục giống tờ giấy [FID-ERP-003 v1.4, FID-ERP-001 v1.13] — Andy: QA gõ tay
+  số liệu từ tờ Traveler quá lâu/dễ sai (xem tờ thật 718960, 718039); scanner
+  barcode có sẵn chỉ điền Traveler#/Part#, mọi ô khác trống. Chọn hướng A
+  (scanner + tra DB + tự tính, KHÔNG OCR — giữ "Xưởng không AI"). `/factory/select`
+  viết lại: scan Traveler# + Enter -> route mới `GET /api/factory/select/lookup`
+  điền Part#/Lot/Pot/PO/Pcs-per-Carton (xám); ô vàng cần copy từ giấy (Sorting
+  M/C #, Operator Initials, Shift 2 nút MRNNG/AFTRN, # of Cartons); Total tự
+  tính = số thùng × Pcs/Carton, sửa tay được; ô "Part# (scan đối chiếu)" cảnh
+  báo lệch mã gốc (không chặn); bảng defect liệt kê sẵn đúng thứ tự tờ giấy;
+  nút "Lần trước: MC112 · 275" (localStorage) thay vì điền sẵn — tránh quên
+  đổi máy. `confirm` giữ nguyên contract, thêm cảnh báo (không chặn) Total
+  không chia hết Pcs/Carton. Migration `20260919170000_add_others_defect_type`
+  thêm dòng "Others" (tờ giấy có 11 dòng defect, seed cũ chỉ 10). `lib/factoryEntry.ts`
+  mới (computeTotal/partMatches/buildDefects/sortDefectTypesByPaper/
+  notDivisibleWarning). 16 test mới + 2 test sửa (10→11 defect) = **194/194 PASS**,
+  lint/`tsc --noEmit` sạch, build thành công. UI kiểm chứng bằng Chrome thật
+  (Puppeteer, không bấm Lưu): scan+Enter tự Tra và nhảy sang ô Part#, Part# lệch
+  có cảnh báo, 32 thùng × 150 = 4800, thứ tự defect khớp tờ giấy, mobile không
+  tràn ngang. Phát hiện+sửa 1 lỗi thật qua kiểm chứng: focus sau Tra dùng
+  setTimeout chạy trước khi ô Part# render -> chuyển sang useEffect theo `lookup`.
+- feat: Wrapping nhập nhanh + scan 2 lần Traveler#/Part# bắt buộc [FID-ERP-005 v1.5,
+  FID-ERP-003 v1.5] — Andy: "làm tương tự cho wrapping" + "thường user scan cả 2 barcode
+  Traveler và Part, mục đích double check". `/wrapping/check` viết lại: scan Traveler# +
+  Enter -> route mới `GET /api/quality/lookup` điền Part#/LOT/POT/PO/Pcs-per-Carton + số
+  đã lựa/đã đóng/còn có thể đóng (xám); scan Part# BẮT BUỘC, lệch -> khoá nút Lưu; ô vàng:
+  Machine, CHECKER, Shift 2 nút MRNNG/AFTRN, No. of boxes, SKID#; TTL tự tính (sửa tay
+  được, UI chặn vượt số còn có thể đóng); PACK mặc định BẬT khi còn hàng chưa đóng (dữ
+  liệu thật: 100% dòng CHECKING SUMMARY có đóng thùng), khoá khi còn = 0; nút gợi ý (không
+  điền sẵn) "Đóng hết: N thùng", "Theo lần lựa: <máy>", "Lần trước: <người kiểm tra>";
+  bảng Reject liệt kê sẵn đủ 11 loại theo thứ tự tờ giấy (thay ô gõ tay mã lỗi) +
+  Special Notes luôn hiện. `/factory/select` nâng Part# scan từ tuỳ chọn thành BẮT BUỘC.
+  Tách `lib/ui/formBlocks.ts` + `lib/ui/recentStorage.ts` dùng chung 2 trang;
+  `suggestPackAll` mới ở `lib/factoryEntry.ts`. `POST /api/quality/check` giữ nguyên
+  contract. 7 test mới = **201/201 PASS**, lint/`tsc --noEmit` sạch, build thành công.
+  UI kiểm chứng bằng Chrome thật (server trỏ `avp_erp_test`, không bấm Lưu) — cả 2 trang.
+  Chưa xem ảnh giấy "WRAPPING SUMMARY" (Andy không cho đọc ở AVP_AI) — bố cục theo cột
+  CHECKING SUMMARY. Serial từng thùng vẫn là FID riêng (chờ Andy trả lời tem/máy scan).
+- feat: chạy thử migration bằng TOÀN BỘ dữ liệu thật + bộ demo [FID-ERP-013 v0.2, FID-ERP-001 v1.13] (đêm 2026-09-20,
+  Andy: "lấy data toàn bộ ... chuẩn bị bộ data đầy đủ cho tôi test và demo", "cần thì delete và format") — DB dev
+  `avp_erp` được format (đã pg_dump backup) rồi nạp: 1.077 part_control · 6.550 travelers · RECEIVE 2.911 · SELECT 3.791 ·
+  PACK 3.790 · SCRAP 1.086 · SHIP 4.784 · 203 Packing Slip · quarantine 246 (chênh lệch CSV↔DB = đúng tổng quarantine).
+  Cơ chế v0.2: chuẩn hoá Part#/máy/ca/Lot/Skid, tách Reject+Special Notes thành nhiều dòng SCRAP (tên lạ → `OTHERS`+note),
+  finalLot, PACK từ dòng Wrapping, ngày SHIP thật (`lib/migrate/{reject,normalize}.ts`, `migrate.ts`); script dựng CSV từ Excel
+  `scripts/migrate/xlsx_to_csv.py` (mọi giả định ở `Data/migration/BUILD_REPORT.md`); `run/audit/reconcile.ts` nạp `.env`. 16 test
+  mới (`migrate-v02.test.ts`) = **217/217 PASS**. Kiểm chứng đêm đó: E2E HTTP 3 trạm **33/33**, UI Chrome bấm Lưu thật **20/20**,
+  smoke 9 trang + API, OCR Gemini thật 18/18 chứng từ (Part#/PO khớp 100%). Snapshot demo: `Data/backup/avp_erp_full_loaded_20260920.dump`;
+  hướng dẫn: `docs/records/DEMO_GUIDE.md`. Sửa nhỏ: nút "Lần trước" hiện máy/người/CHECKER dạng IN HOA (đúng dạng server sẽ lưu).
+- feat: kết quả tìm kiếm BẤM ĐƯỢC + trang chi tiết Traveler/PS/Part# [FID-ERP-015] — Andy: "khi search ra thì có thể click vào link của
+  thông tin đó" (chọn A+B). Bấm Traveler: trang có ô Traveler# (`/factory/select`, `/wrapping/check`, `/packing/new`, `/lot/update`) tự điền +
+  Tra (sự kiện `avp:pick-traveler` + hook `usePickTraveler`); trang khác mở `/view/traveler/<no>` (Part/PO/Pot/Lot/Skid, tổng theo loại, lịch sử
+  stock_moves, Good/Hold, đổi Lot, Packing Slip); Packing Slip → `/view/ps/<no>`; Part# → `/view/part/<no>`; link "Chi tiết" luôn mở trang chi tiết.
+  Mới: `lib/detail.ts`, `lib/ui/pickTraveler.ts`, `components/DetailBits.tsx`, `GlobalSearchBar.module.css`, 3 trang `app/view/*`; rule `/view` cho cả 3
+  trạm trong `lib/auth.ts`. 12 test mới = **229/229 PASS**, lint/tsc/build sạch, Chrome thật 23/23 (chỉ đọc). Kèm sửa dữ liệu nạp thử [FID-ERP-013 v0.2]:
+  ngày lập Packing Slip = ngày xuất thật (không phải `now()`), Traveler không có RECEIVE muộn hơn SELECT/SHIP; DB dev + snapshot demo đã nạp lại.

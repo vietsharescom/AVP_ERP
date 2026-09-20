@@ -1,11 +1,15 @@
 // FID-ERP-013 Phase 0 — quét lỗi TRƯỚC khi migrate, KHÔNG ghi bất kỳ bảng
 // nào (chỉ đọc `part_control`/`travelers` hiện có để kiểm FK). Chạy:
 //   npx tsx scripts/migrate/audit.ts
+// nạp DATABASE_URL từ webapp/.env (script chạy ngoài Next.js) — PHẢI đứng trước mọi import lib/prisma
+import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseCsv } from "../../lib/migrate/csv";
 import { parsePositiveInt, parseSourceDate } from "../../lib/migrate/dates";
 import { prisma } from "../../lib/prisma";
+import { normalizePartNo } from "../../lib/migrate/migrate";
+import { parseRejectLines } from "../../lib/migrate/reject";
 import type { FinishGoodRow, PackingListRow, PartControlRow, RawMaterialRow, WarehouseRow } from "../../lib/migrate/types";
 
 const DIR = resolve(__dirname, "../../../Data/migration");
@@ -36,7 +40,7 @@ async function main() {
     }),
   );
 
-  const validParts = new Set(partControl.map((r) => (r.part ?? "").trim()));
+  const validParts = new Set(partControl.map((r) => (r.part ?? "").trim().toUpperCase()));
 
   const rawMaterial = readCsv<RawMaterialRow>("RawMaterial.csv");
   report(
@@ -46,7 +50,7 @@ async function main() {
       const errs: string[] = [];
       if (!(r.traveler ?? "").trim()) errs.push("MISSING_TRAVELER");
       if (!(r.partNo ?? "").trim()) errs.push("MISSING_PART_NO");
-      else if (!validParts.has(r.partNo.trim())) errs.push("PART_NOT_IN_PART_CONTROL");
+      else if (!validParts.has(normalizePartNo(r.partNo))) errs.push("PART_NOT_IN_PART_CONTROL");
       if (!parseSourceDate(r.date)) errs.push("INVALID_DATE");
       return errs;
     }),
@@ -68,7 +72,7 @@ async function main() {
     }),
   );
 
-  const defectLabels = (await prisma.defectType.findMany()).map((d) => d.label.toUpperCase());
+  const defectTypes = await prisma.defectType.findMany({ select: { code: true, label: true } });
   const finishGood = readCsv<FinishGoodRow>("FinishGood.csv");
   report(
     "FinishGood",
@@ -82,9 +86,9 @@ async function main() {
       if (!(r.operator ?? "").trim()) errs.push("MISSING_OPERATOR_CODE");
       if (!(r.shift ?? "").trim()) errs.push("MISSING_SHIFT");
       if (!parseSourceDate(r.date) && !parseSourceDate(r.createdAt)) errs.push("INVALID_DATE");
-      if (r.reject && parsePositiveInt(r.reject) !== null) {
-        const notes = (r.specialNotes ?? "").trim().toUpperCase();
-        if (!notes || !defectLabels.some((l) => notes.includes(l))) errs.push("SCRAP_REASON_NOT_FOUND");
+      if ((r.reject ?? "").trim()) {
+        const parsed = parseRejectLines(r.reject, r.specialNotes, defectTypes);
+        if ("error" in parsed) errs.push(parsed.error);
       }
       return errs;
     }),

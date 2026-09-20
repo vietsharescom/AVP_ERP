@@ -1,6 +1,8 @@
 // FID-ERP-013 Phase 3 — đối chiếu COUNT/SUM giữa CSV gốc và Postgres sau
 // khi `run.ts` chạy xong. Andy ký xác nhận (ghi vào LATEST_SESSION.md)
 // TRƯỚC KHI tắt AVP_AI — xem docs/features/FID-ERP-013_20260919.md §5.
+// nạp DATABASE_URL từ webapp/.env (script chạy ngoài Next.js) — PHẢI đứng trước mọi import lib/prisma
+import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseCsv } from "../../lib/migrate/csv";
@@ -17,6 +19,13 @@ function readCsv<T>(file: string): T[] {
 
 function sumBy<T>(rows: T[], pick: (r: T) => string | undefined): number {
   return rows.reduce((s, r) => s + (parsePositiveInt(pick(r)) ?? 0), 0);
+}
+
+// v0.2 — Reject là DANH SÁCH số ("3, 100, 1, 7"), không phải 1 số.
+function sumList(value: string | undefined): number {
+  return (value ?? "")
+    .split(/[,;\s]+/)
+    .reduce((sum, tok) => sum + (parsePositiveInt(tok) ?? 0), 0);
 }
 
 function line(label: string, csvValue: number, dbValue: number) {
@@ -56,8 +65,14 @@ async function main() {
   const selectAgg = await prisma.stockMove.aggregate({ where: { moveType: "SELECT" }, _sum: { qty: true } });
   const scrapAgg = await prisma.stockMove.aggregate({ where: { moveType: "SCRAP" }, _sum: { qty: true } });
   line("SUM qty (SELECT)", sumBy(finishGood, (r) => r.qty), selectAgg._sum.qty ?? 0);
-  line("SUM reject (SCRAP)", sumBy(finishGood, (r) => r.reject), scrapAgg._sum.qty ?? 0);
-  console.log(`  Quarantine: ${quarantinedBySheet.get("FinishGood") ?? 0} (dòng reject không khớp reasonCode KHÔNG có SELECT/SCRAP nào được ghi — lệch SUM ở đây là BÌNH THƯỜNG cho tới khi Andy xử lý xong quarantine)`);
+  const packAgg = await prisma.stockMove.aggregate({ where: { moveType: "PACK" }, _sum: { qty: true } });
+  line(
+    "SUM qty (PACK, chỉ dòng có số thùng hợp lệ)",
+    finishGood.reduce((sum, r) => sum + (parsePositiveInt(r.boxes) !== null ? (parsePositiveInt(r.qty) ?? 0) : 0), 0),
+    packAgg._sum.qty ?? 0,
+  );
+  line("SUM reject (SCRAP)", finishGood.reduce((sum, r) => sum + sumList(r.reject), 0), scrapAgg._sum.qty ?? 0);
+  console.log(`  Quarantine: ${quarantinedBySheet.get("FinishGood") ?? 0} (dòng bị quarantine KHÔNG có SELECT/SCRAP nào được ghi — lệch SUM ở đây = đúng tổng các dòng quarantine, Andy xử lý xong sẽ khớp)`);
 
   console.log("\nPackingList (SHIP):");
   const shipAgg = await prisma.stockMove.aggregate({ where: { moveType: "SHIP" }, _sum: { qty: true } });

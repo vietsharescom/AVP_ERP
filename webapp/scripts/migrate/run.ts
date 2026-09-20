@@ -5,6 +5,8 @@
 // Cách chạy: đặt 5 file CSV vào Data/migration/ (RawMaterial.csv,
 // Warehouse.csv, FinishGood.csv, PartControl.csv, PackingList.csv) rồi:
 //   npx tsx scripts/migrate/run.ts
+// nạp DATABASE_URL từ webapp/.env (script chạy ngoài Next.js) — PHẢI đứng trước mọi import lib/prisma
+import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseCsv } from "../../lib/migrate/csv";

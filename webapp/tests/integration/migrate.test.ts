@@ -170,7 +170,10 @@ describe("FID-ERP-013 — migrateFinishGood", () => {
     expect(qc?.status).toBe("GOOD");
   });
 
-  it("reject KHÔNG khớp mã lỗi nào -> quarantine CẢ dòng, không ghi SELECT lẻ", async () => {
+  // v0.2 (Mục 0 #3) — thay quy tắc v0.1 "không khớp -> quarantine CẢ dòng":
+  // tên lỗi lạ giờ vào `OTHERS` + ghi chú (giống cách Andy chốt cho Wrapping,
+  // FID-ERP-005 v1.5), không mất cả dòng SELECT vì 1 tên lỗi lạ.
+  it("reject KHÔNG khớp mã lỗi nào -> vẫn ghi SELECT + SCRAP `OTHERS` giữ nguyên tên gốc ở note", async () => {
     const travelerNo = await seedTraveler();
     const summary = await migrateFinishGood([
       {
@@ -185,9 +188,13 @@ describe("FID-ERP-013 — migrateFinishGood", () => {
         specialNotes: "ĐỌC KHÔNG RA",
       },
     ]);
-    expect(summary.quarantined).toBe(1);
+    expect(summary.quarantined).toBe(0);
     const select = await prisma.stockMove.findFirst({ where: { travelerNo, moveType: "SELECT" } });
-    expect(select).toBeNull();
+    expect(select?.qty).toBe(100);
+    const scrap = await prisma.stockMove.findFirst({ where: { travelerNo, moveType: "SCRAP" } });
+    expect(scrap?.reasonCode).toBe("OTHERS");
+    expect(scrap?.qty).toBe(50);
+    expect(scrap?.note).toBe("ĐỌC KHÔNG RA");
   });
 
   it("lotNo là placeholder AVP_AI (TRAVELERRECEIVED) -> KHÔNG ghi vào travelers.lotNo", async () => {

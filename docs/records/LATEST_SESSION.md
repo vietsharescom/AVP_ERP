@@ -10,7 +10,7 @@
 |---|---|
 | Session | SES-20260917-001 đến SES-20260919-009 |
 | Chủ dự án | Andy Phan (Viet), Maple Leaf Group |
-| Git | **Đã commit + push hết**, working tree sạch (trừ 2 file khoá tạm `~$*.xlsx` của Excel — không phải dữ liệu, Andy tự xoá khi đóng Excel). Commit mới nhất: `0a197ce` (FID-ERP-002 v1.2, 003 v1.3, 004 v1.1, 005 v1.4, 014 v1.1). |
+| Git | **CHƯA commit** thay đổi từ 2026-09-19 tối → 2026-09-20 (commit mới nhất đã push vẫn là `b95c5b0`): FID-003 v1.4/1.5, FID-005 v1.5, FID-001 v1.13, FID-013 v0.2 + code `webapp/` + `Data/migration/*` + `Data/backup/*.dump` + ảnh WhatsApp Traveler. Chờ Andy xác nhận commit/push (và quyết định file CSV/dump có đưa vào git không). |
 | Trạng thái | **FID-ERP-001 (v1.12) + FID-ERP-002→009+011+012+014 DONE — 178/178 test PASS, lint/tsc/build sạch; đã thử thật qua trình duyệt: `/capture` (Gemini OCR thật), `/lot/update`, `/factory/select`, `/wrapping/check`.** FID-ERP-013 DRAFT (cơ chế đã code+test bằng data mẫu, MIGRATE THẬT chờ Andy trả lời Mục 0). FID-ERP-010 CHƯA VIẾT (chờ máy in). `webapp/` (Next.js 16 + Prisma 7 + PostgreSQL 18) chạy được thật trên `localhost:3001`, có đăng nhập theo trạm + menu điều hướng. |
 
 ---
@@ -61,6 +61,13 @@ Andy tiếp tục "thử nghiệm thật" đi hết 1 vòng đời Traveler qua 
 Andy tiếp tục test `/wrapping/check` với PACK cho `717860` — phát hiện 2 lỗ hổng thật: (1) `boxCount=700` cho `qty=1000` (Part# `qtyPerBox=6000`) vẫn lưu được không cảnh báo (trung bình 1.4 pcs/thùng, rõ ràng gõ lộn 2 ô); (2) `shift="MONING"` (gõ nhầm) cũng không bị phát hiện. Kiểm tra `BANG_MA_THAM_CHIEU_AVP_2026-09-17.xlsx` (sheet `3_Ma_May`/`4_Ma_Nhan_Vien`) — cả 2 TỰ GHI "chưa xác nhận"/"chưa có danh sách chính thức" nên KHÔNG dùng làm rule. Andy chỉ hướng qua chứng từ thật `D:\AVP_AI\Data\4.WRAPPING\WRAPPING SUMMARY-SEP 4.jpeg` (đọc THAM KHẢO theo yêu cầu rõ, CLAUDE.md nguyên tắc #5) — xác nhận quy ước ca chỉ có `MRNNG`/`AFTRN`. Đã sửa [FID-ERP-005 v1.3](../features/FID-ERP-005_20260918.md#13-thực-hiện-v13-2026-09-19-cùng-phiên) + [FID-ERP-003 v1.2](../features/FID-ERP-003_20260918.md#11-thực-hiện-v12-2026-09-19-cùng-phiên-cảnh-báo-shift-phi-quy-ước) — thêm `webapp/lib/shift.ts` + cảnh báo boxCount/qty theo `part_control.qtyPerBox`, CẢ HAI đều KHÔNG chặn ghi (chỉ trả `warnings[]`, vì số Xưởng tự nhập tay không qua draft/OCR). 5 test mới, **176/176 PASS** toàn dự án, lint sạch, `tsc --noEmit` sạch, build thành công. Mã máy/mã nhân viên vẫn để dành chờ Owner cung cấp danh sách chính thức (Mục 4 việc đang mở, thêm mục mới).
 
 Andy bấm "Xác nhận & Lưu" lặp lại cho `716958` ở `/wrapping/check` — mỗi lần ghi thêm 1 dòng `quality_checks` GOOD (4 dòng trùng, append-only không xoá được), không cảnh báo. Andy chọn cảnh báo (không chặn) + yêu cầu bước "Tra" verify trước cho cả Traveler và Wrapping. Đã làm [FID-ERP-005 v1.4](../features/FID-ERP-005_20260918.md) + [FID-ERP-003 v1.3](../features/FID-ERP-003_20260918.md): API cảnh báo trùng; UI `/wrapping/check` + `/factory/select` thêm nút "Tra" (tái dùng `/api/search`), `canSubmit` đòi tra đúng Traveler# đang gõ. **178/178 PASS**, lint/tsc/build sạch. CHƯA có xác nhận Andy đã thử lại UI mới trên trình duyệt. **Đã commit + push** toàn bộ thay đổi phiên SES-20260919-009 (commit `0a197ce`).
+
+**SES-20260920-010 (đêm 2026-09-19 → 09-20)** — làm liên tục, Andy ngủ giữa chừng ("tự làm được tôi đi ngủ"):
+- **FID-ERP-003 v1.4 + v1.5** (`/factory/select`): scan Traveler# (scanner) tự điền Part/Lot/Pot/Pcs-per-Carton từ DB, Total tự tính, bố cục giống tờ giấy (xám = tự có, vàng = copy từ giấy), bảng defect liệt kê sẵn 11 dòng theo tờ (thêm `OTHERS` — FID-001 v1.13), nút "Lần trước" cho máy/người, scan Part# BẮT BUỘC (double check Traveler/Part, lệch → khoá Lưu). Chọn hướng KHÔNG OCR (giữ "Xưởng không AI").
+- **FID-ERP-005 v1.5** (`/wrapping/check`): tương tự + PACK mặc định bật khi còn hàng chưa đóng, "Đóng hết", bảng Reject liệt kê sẵn. Route mới `GET /api/quality/lookup`, `GET /api/factory/select/lookup`. Serial từng thùng vẫn là FID riêng (chờ 2 câu: tem 1 hay 3 barcode, máy scan).
+- **FID-ERP-013 v0.2 — CHẠY THỬ TOÀN BỘ dữ liệu thật** (Andy cho phép format DB dev): xem FID-013 Mục 11 + **`docs/records/DEMO_GUIDE.md`** (kịch bản demo, số liệu, snapshot restore, giới hạn). DB dev đã format + nạp 6.550 Traveler / 16.362 stock_moves / 203 PS; quarantine 246.
+- Kiểm chứng: 217/217 test · E2E HTTP 33/33 · UI Chrome bấm Lưu thật 20/20 · OCR Gemini thật 18/18 chứng từ (Part#/PO khớp 100%).
+- Bài học: (1) Prisma CLI chặn `migrate reset` từ AI trừ khi đặt `PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION` = nguyên văn lời user; (2) mỗi lần chạy trên dữ liệu thật lộ thêm lỗi mà test mẫu không thấy (Part# có hậu tố làm oan 2.047 Traveler, `STUCK TGT` làm mất ~25% sản xuất nếu quarantine cả dòng, PACK thiếu → "chờ xuất" luôn 0, ngày xuất `now()`), và focus `setTimeout` trước khi render (UI) — vẫn phải thử thật.
 
 ---
 
@@ -183,6 +190,8 @@ ca892fd docs: draft FID-ERP-003 v1.1 + schema v1.5 (thêm REWORK)
 ---
 
 ### 6. KẾ HOẠCH PHIÊN SAU
+
+**Ưu tiên 00 (sáng 2026-09-20) — Andy xem + quyết:** (1) đọc `docs/records/DEMO_GUIDE.md`, `npm run build` + `npx next start`, tự chạy thử kịch bản demo (Traveler `718085` → Xưởng → Wrapping → Packing Slip; PO `194141.pdf` cho Quét PO) và báo chỗ chưa ổn; (2) xác nhận commit/push (các file mới lớn: `Data/migration/*.csv`, `Data/backup/*.dump`); (3) 6 câu Mục 0 FID-013 — nay đã có số liệu thật để quyết; (4) Serial: tem 1 hay 3 barcode + loại máy scan; (5) ảnh giấy "WRAPPING SUMMARY" ở AVP_AI có cho đọc để khớp nhãn form Wrapping không; (6) loại máy in sticker (FID-010).
 
 **Ưu tiên 0 — hoàn tất vòng đời traveler demo `718779`** (đang dở giữa phiên
 009): traveler này THIẾU dòng `quality_checks` (dữ liệu demo nạp SQL bỏ sót)
