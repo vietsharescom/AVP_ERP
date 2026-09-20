@@ -15,5 +15,3 @@ docs/records/*.md
 # NGOAI LE: LATEST_SESSION.md PHAI push de dong bo Desktop <-> Laptop
 !docs/records/LATEST_SESSION.md
 
-# Ban sao database (chi de tren may local, khong dua len git)
-Data/backup/*.dump

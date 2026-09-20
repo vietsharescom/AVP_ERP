@@ -17,7 +17,7 @@
 
 Khoảng thời gian: sản xuất/đóng thùng chủ yếu **Jun → 16/09/2026** (daily rõ nhất từ 21/08). Đối chiếu số liệu đã kiểm: mọi chênh lệch CSV↔DB **bằng đúng tổng các dòng quarantine** (RECEIVE 1.107.468, SELECT/PACK 1.048.618, SHIP 1.704.132).
 
-**Snapshot để khôi phục sạch trước mỗi buổi demo** (file `.dump` chỉ nằm trên máy này — KHÔNG đưa lên git vì là bản sao toàn bộ dữ liệu sản xuất; mất thì dựng lại bằng `xlsx_to_csv.py` + `run.ts`, xem FID-ERP-013 Mục 11) (sau khi demo, mọi thứ ghi thêm là append-only, không xoá được — chỉ restore):
+**Snapshot để khôi phục sạch trước mỗi buổi demo** (2 file `.dump` nằm trong git để đồng bộ Desktop ↔ Laptop; mất thì dựng lại bằng `xlsx_to_csv.py` + `run.ts`, xem FID-ERP-013 Mục 11. Dump là nhị phân, KHÔNG dùng để xem khác biệt; dựng lại snapshot mới thì commit đè và chấp nhận thêm ~400 KB vào lịch sử) (sau khi demo, mọi thứ ghi thêm là append-only, không xoá được — chỉ restore):
 - `Data/backup/avp_erp_full_loaded_20260920.dump` — bộ dữ liệu đầy đủ, sạch (dùng file này).
 - `Data/backup/avp_erp_dev_backup_20260920.dump` — DB dev CŨ trước khi format (37 Traveler test/demo của Andy).
 
