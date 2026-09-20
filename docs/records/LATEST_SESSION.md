@@ -1,6 +1,6 @@
 # SESSION REPORT — AVP_ERP
 
-## SES-20260917-001 → SES-20260919-008 (3 ngày làm việc liên tục)
+## SES-20260917-001 → SES-20260919-009 (3 ngày làm việc liên tục)
 
 ---
 
@@ -8,10 +8,10 @@
 
 | Trường | Giá trị |
 |---|---|
-| Session | SES-20260917-001 đến SES-20260919-008 |
+| Session | SES-20260917-001 đến SES-20260919-009 |
 | Chủ dự án | Andy Phan (Viet), Maple Leaf Group |
-| Git | Commit gần nhất đã push: `0d504bd` (FID-ERP-011). Đã commit LOCAL (chưa push): `fcfe437` (FID-ERP-012), `58ec75c` (FID-ERP-013 cơ chế). **FID-ERP-014 (menu/trang chủ/đồng bộ UI) code xong nhưng CHƯA COMMIT** — chờ Andy xác nhận (xem Mục 5). |
-| Trạng thái | **FID-ERP-001 (v1.12) + FID-ERP-002→009+011+012+014 DONE — 160/160 test PASS, lint sạch, build sạch (không cảnh báo), UI đã kiểm chứng bằng ảnh chụp trình duyệt thật.** FID-ERP-013 DRAFT (cơ chế đã code+test bằng data mẫu, MIGRATE THẬT chờ Andy trả lời Mục 0). FID-ERP-010 CHƯA VIẾT (chờ máy in). `webapp/` (Next.js 16 + Prisma 7 + PostgreSQL 18) chạy được thật trên `localhost:3001`, có đăng nhập theo trạm + menu điều hướng. |
+| Git | **Đã commit + push hết**, working tree sạch (trừ 2 file khoá tạm `~$*.xlsx` của Excel — không phải dữ liệu, Andy tự xoá khi đóng Excel). Commit mới nhất: `0a197ce` (FID-ERP-002 v1.2, 003 v1.3, 004 v1.1, 005 v1.4, 014 v1.1). |
+| Trạng thái | **FID-ERP-001 (v1.12) + FID-ERP-002→009+011+012+014 DONE — 178/178 test PASS, lint/tsc/build sạch; đã thử thật qua trình duyệt: `/capture` (Gemini OCR thật), `/lot/update`, `/factory/select`, `/wrapping/check`.** FID-ERP-013 DRAFT (cơ chế đã code+test bằng data mẫu, MIGRATE THẬT chờ Andy trả lời Mục 0). FID-ERP-010 CHƯA VIẾT (chờ máy in). `webapp/` (Next.js 16 + Prisma 7 + PostgreSQL 18) chạy được thật trên `localhost:3001`, có đăng nhập theo trạm + menu điều hướng. |
 
 ---
 
@@ -20,7 +20,7 @@
 | FID | Tên | Trạng thái | Điểm đáng nhớ |
 |---|---|---|---|
 | [FID-ERP-001](../features/FID-ERP-001_20260917.md) | Schema Postgres nền tảng | ✅ DONE (v1.7) | v1.0→v1.4: 3 vòng phản biện GPT+Grok (17/9). v1.5: +`REWORK`+`note` (cho FID-003). v1.6: +bảng `quality_checks` (cho FID-005). v1.7: +bảng `lot_updates`+cờ `lotConcession*` (cho FID-006). Mỗi lần thêm bảng/enum đều phải chạy `npx prisma generate` lại, không chỉ migrate. |
-| [FID-ERP-002](../features/FID-ERP-002_20260918.md) | CaptureGate (PO + Kho nguyên liệu) | ✅ DONE | Gemini OCR, draft trước/ghi sau (CCP-1). `GEMINI_API_KEY` **chưa có key thật** — test mock. Excel chưa hỗ trợ, chỉ ảnh/PDF. |
+| [FID-ERP-002](../features/FID-ERP-002_20260918.md) | CaptureGate (PO + Kho nguyên liệu) | ✅ DONE | Gemini OCR, draft trước/ghi sau (CCP-1). `GEMINI_API_KEY` **đã có key thật** (2026-09-19, copy từ AVP_AI), OCR PO thật chạy được; test tự động vẫn mock. v1.1 cắt hậu tố Part#; v1.2 đích `po_receive` (bypass, riêng AVP). Excel chưa hỗ trợ, chỉ ảnh/PDF. |
 | [FID-ERP-003](../features/FID-ERP-003_20260918.md) | Trạm nhập liệu Xưởng (v1.1) | ✅ DONE | Ghi SELECT+SCRAP+REWORK 1 transaction. Bài học: Rework ≠ Return/FID-007 (khác cấp độ) — Andy sửa lại bản v1.0 sai. |
 | [FID-ERP-004](../features/FID-ERP-004_20260918.md) | GlobalSearchBar (ILIKE Postgres) | ✅ DONE | 1 ô search gắn `layout.tsx`, hiện mọi trang, đối xứng cả 3 điểm truy cập. |
 | [FID-ERP-005](../features/FID-ERP-005_20260918.md) | Status Good/Hold (Wrapping) + Reject + PACK/Skid# (v1.1) | ✅ DONE | Kiểm chứng dữ liệu thật (`openpyxl` đọc `Wrapping_final.xlsm`) trước khi thiết kế — `Reject` là số lượng (ghi SCRAP), không phải trạng thái thứ 4. **v1.1 (2026-09-19)**: Andy gửi ảnh chụp thật "WRAPPING SUMMARY" xác nhận đóng thùng (PACK, số thùng+qty) + Skid# ghi CÙNG lúc với Good/Hold — sửa lại FID đã DONE để thêm `pack` optional vào request. |
@@ -60,7 +60,7 @@ Andy tiếp tục "thử nghiệm thật" đi hết 1 vòng đời Traveler qua 
 
 Andy tiếp tục test `/wrapping/check` với PACK cho `717860` — phát hiện 2 lỗ hổng thật: (1) `boxCount=700` cho `qty=1000` (Part# `qtyPerBox=6000`) vẫn lưu được không cảnh báo (trung bình 1.4 pcs/thùng, rõ ràng gõ lộn 2 ô); (2) `shift="MONING"` (gõ nhầm) cũng không bị phát hiện. Kiểm tra `BANG_MA_THAM_CHIEU_AVP_2026-09-17.xlsx` (sheet `3_Ma_May`/`4_Ma_Nhan_Vien`) — cả 2 TỰ GHI "chưa xác nhận"/"chưa có danh sách chính thức" nên KHÔNG dùng làm rule. Andy chỉ hướng qua chứng từ thật `D:\AVP_AI\Data\4.WRAPPING\WRAPPING SUMMARY-SEP 4.jpeg` (đọc THAM KHẢO theo yêu cầu rõ, CLAUDE.md nguyên tắc #5) — xác nhận quy ước ca chỉ có `MRNNG`/`AFTRN`. Đã sửa [FID-ERP-005 v1.3](../features/FID-ERP-005_20260918.md#13-thực-hiện-v13-2026-09-19-cùng-phiên) + [FID-ERP-003 v1.2](../features/FID-ERP-003_20260918.md#11-thực-hiện-v12-2026-09-19-cùng-phiên-cảnh-báo-shift-phi-quy-ước) — thêm `webapp/lib/shift.ts` + cảnh báo boxCount/qty theo `part_control.qtyPerBox`, CẢ HAI đều KHÔNG chặn ghi (chỉ trả `warnings[]`, vì số Xưởng tự nhập tay không qua draft/OCR). 5 test mới, **176/176 PASS** toàn dự án, lint sạch, `tsc --noEmit` sạch, build thành công. Mã máy/mã nhân viên vẫn để dành chờ Owner cung cấp danh sách chính thức (Mục 4 việc đang mở, thêm mục mới).
 
-Andy bấm "Xác nhận & Lưu" lặp lại cho `716958` ở `/wrapping/check` — mỗi lần ghi thêm 1 dòng `quality_checks` GOOD (4 dòng trùng, append-only không xoá được), không cảnh báo. Andy chọn cảnh báo (không chặn) + yêu cầu bước "Tra" verify trước cho cả Traveler và Wrapping. Đã làm [FID-ERP-005 v1.4](../features/FID-ERP-005_20260918.md) + [FID-ERP-003 v1.3](../features/FID-ERP-003_20260918.md): API cảnh báo trùng; UI `/wrapping/check` + `/factory/select` thêm nút "Tra" (tái dùng `/api/search`), `canSubmit` đòi tra đúng Traveler# đang gõ. **178/178 PASS**, lint/tsc/build sạch. CHƯA có xác nhận Andy đã thử lại UI mới trên trình duyệt. **CHƯA commit** — toàn bộ thay đổi phiên SES-20260919-009 (FID-002 v1.1/1.2, 003 v1.2/1.3, 004 v1.1, 005 v1.2→1.4, 014 v1.1, `lib/part.ts`, `lib/shift.ts`, `Data/PART_CONTROL_MASTER_2026-09-19.xlsx`) đang chờ Andy xác nhận commit.
+Andy bấm "Xác nhận & Lưu" lặp lại cho `716958` ở `/wrapping/check` — mỗi lần ghi thêm 1 dòng `quality_checks` GOOD (4 dòng trùng, append-only không xoá được), không cảnh báo. Andy chọn cảnh báo (không chặn) + yêu cầu bước "Tra" verify trước cho cả Traveler và Wrapping. Đã làm [FID-ERP-005 v1.4](../features/FID-ERP-005_20260918.md) + [FID-ERP-003 v1.3](../features/FID-ERP-003_20260918.md): API cảnh báo trùng; UI `/wrapping/check` + `/factory/select` thêm nút "Tra" (tái dùng `/api/search`), `canSubmit` đòi tra đúng Traveler# đang gõ. **178/178 PASS**, lint/tsc/build sạch. CHƯA có xác nhận Andy đã thử lại UI mới trên trình duyệt. **Đã commit + push** toàn bộ thay đổi phiên SES-20260919-009 (commit `0a197ce`).
 
 ---
 
@@ -138,19 +138,30 @@ xác nhận "commit push") — working tree sạch, `main` local = `main` remote
   nghiệp vụ cũ (chỉ đổi khung/màu, xem FID-ERP-014 Mục 10),
   `webapp/tests/integration/auth.test.ts` (thêm 6 test).
 
+**Đợt 2 (SES-20260919-009, Andy xác nhận "commit push")** — 1 commit đã push
+(`53bd61e..0a197ce`): `0a197ce` — test thật CaptureGate/Wrapping: cắt hậu tố
+Part# (`lib/part.ts`), đích `po_receive`, cảnh báo shift/boxCount/trùng lặp
+(`lib/shift.ts`), bước "Tra" ở `/wrapping/check` + `/factory/select`, tìm
+kiếm Part# có hậu tố, tile "PO / Traveler tồn đọng", file
+`Data/PART_CONTROL_MASTER_2026-09-19.xlsx` (24 file). Commit báo cáo phiên
+này (`docs: chốt báo cáo...009`) đi kèm sau — chưa push cho tới khi Andy
+xác nhận.
+
 **Việc chưa dứt điểm cần lưu ý phiên sau**: FID-ERP-013 mới xong PHẦN
 CƠ CHẾ (test bằng data giả lập) — việc MIGRATE DỮ LIỆU LỊCH SỬ THẬT từ
 AVP_AI VẪN CHƯA LÀM, còn nguyên 6 câu hỏi ở Mục 0 (file FID) chưa trả
 lời, KHÔNG được coi FID này là "DONE" cho tới khi Andy quyết xong 6 câu
 đó và chạy `run.ts` thật trên CSV export.
 
-Có 1 file tạm của Excel (`Data/4.WRAPPING/~$Wrapping_final.xlsm`, sinh ra
-khi Andy mở file xem ảnh chụp WRAPPING SUMMARY) xuất hiện trong
+Có file khoá tạm của Excel (`Data/~$BANG_MA_THAM_CHIEU_AVP_2026-09-17.xlsx`,
+`Data/3.FINISHED PALLET/~$FINISHED PALLET REPORT_final.xlsm` — sinh ra khi
+Andy mở file trong Excel) xuất hiện trong
 `git status` nhưng KHÔNG được add — không phải dữ liệu thật, Andy có thể
 tự xoá (đóng Excel lại là tự mất), Claude không tự xoá.
 
 Lịch sử commit chính phiên này (mới nhất trước):
 ```
+0a197ce feat: Test thực CaptureGate/Wrapping — cắt hậu tố Part#, po_receive, cảnh báo, bước Tra, part_control master
 5eb6f5f feat: Thiết kế UI thống nhất — menu+trang chủ+đồng bộ+responsive [FID-ERP-014]
 58ec75c feat: Cơ chế migration từ AVP_AI + migration_quarantine [FID-ERP-013]
 fcfe437 feat: Báo cáo sản xuất Xưởng [FID-ERP-012]
@@ -172,6 +183,19 @@ ca892fd docs: draft FID-ERP-003 v1.1 + schema v1.5 (thêm REWORK)
 ---
 
 ### 6. KẾ HOẠCH PHIÊN SAU
+
+**Ưu tiên 0 — hoàn tất vòng đời traveler demo `718779`** (đang dở giữa phiên
+009): traveler này THIẾU dòng `quality_checks` (dữ liệu demo nạp SQL bỏ sót)
+→ `/wrapping/check` (Good, KHÔNG bật PACK, đăng nhập Xưởng `xuong-tam-2026`)
+→ `/packing/new` (đăng nhập Office `office-tam-2026`, Tra `718779` → Duyệt PS).
+Thử luôn UI "Tra" mới ở `/wrapping/check` + `/factory/select` (chưa có xác
+nhận Andy đã thử trên trình duyệt). Traveler `716958`/`717860` đã SELECT +
+Good, dùng được cho luồng thứ 2.
+
+**Bài học phiên 009**: mọi lỗ hổng phát hiện trong phiên này đều do Andy
+TEST THẬT trên trình duyệt bằng dữ liệu thật (không phải test tự động):
+Part# có hậu tố, tìm không ra, PACK phi lý, ca gõ sai, lưu trùng. Test tự
+động mock hết nên không thấy — phiên sau tiếp tục ưu tiên thử luồng thật.
 
 **Ưu tiên 1 — quyết 6 câu hỏi FID-ERP-013 Mục 0** (khi Andy sẵn sàng
 migrate dữ liệu lịch sử THẬT, không phải ngay phiên tới nếu chưa cần):
