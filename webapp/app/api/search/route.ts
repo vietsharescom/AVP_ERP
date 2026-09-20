@@ -2,6 +2,7 @@
 // (không phân quyền theo trạm — chỉ add-file/OCR mới phân quyền, FID-ERP-011).
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
+import { stripPartSuffix } from "../../../lib/part";
 
 const LIMIT = 8;
 
@@ -11,12 +12,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, travelers: [], packingSlips: [], partControls: [] });
   }
 
+  // v1.1 (FID-ERP-002) cắt hậu tố Part# trước khi ghi `travelers.partNo`/
+  // `part_control.part_no` — gõ ĐÚNG mã in trên nhãn thật (CÓ hậu tố, vd
+  // "11547369-BR-HA-T") sẽ không khớp `contains` với mã gốc đã lưu ngắn
+  // hơn ("11547369"). Tìm THÊM theo mã đã cắt hậu tố (nếu khác `q`) để
+  // vẫn ra kết quả đúng — phát hiện qua Andy tìm thật không ra 2026-09-19.
+  const qStripped = stripPartSuffix(q);
+  const partNoTerms = qStripped !== q ? [q, qStripped] : [q];
+
   const [travelerRows, packingSlipRows, partControlRows] = await Promise.all([
     prisma.traveler.findMany({
       where: {
         OR: [
           { travelerNo: { contains: q, mode: "insensitive" } },
-          { partNo: { contains: q, mode: "insensitive" } },
+          ...partNoTerms.map((term) => ({ partNo: { contains: term, mode: "insensitive" as const } })),
           { poNo: { contains: q, mode: "insensitive" } },
           { potNo: { contains: q, mode: "insensitive" } },
           { lotNo: { contains: q, mode: "insensitive" } },
@@ -32,7 +41,7 @@ export async function GET(req: NextRequest) {
       include: { _count: { select: { lines: true } } },
     }),
     prisma.partControl.findMany({
-      where: { partNo: { contains: q, mode: "insensitive" } },
+      where: { OR: partNoTerms.map((term) => ({ partNo: { contains: term, mode: "insensitive" as const } })) },
       take: LIMIT,
     }),
   ]);

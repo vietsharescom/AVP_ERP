@@ -21,9 +21,23 @@ function travelerNo(suffix: string) {
   return `TESTTR-QC-${RUN}-${suffix}`;
 }
 
-async function makeTraveler(suffix: string) {
+async function makeTravelerBare(suffix: string) {
   const tr = travelerNo(suffix);
   await prisma.traveler.create({ data: { travelerNo: tr, partNo: PART_NO } });
+  return tr;
+}
+
+// v1.2 — Kiểm tra Wrapping bắt buộc Traveler đã qua SELECT (Xưởng) —
+// mọi fixture traveler dùng chung ở test file này phải có sẵn 1 dòng
+// SELECT, giống đúng luồng thật (Traveler qua máy lựa TRƯỚC khi tới
+// Wrapping), xem docs/features/FID-ERP-005_20260918.md §10. Riêng
+// nhóm test "pack" tự quản lý SELECT qty chính xác qua `selectFor()`
+// (dùng `makeTravelerBare` để tránh cộng dồn 2 lần SELECT).
+async function makeTraveler(suffix: string) {
+  const tr = await makeTravelerBare(suffix);
+  await prisma.stockMove.create({
+    data: { travelerNo: tr, moveType: "SELECT", qty: 1000, machineCode: "MC1", operatorCode: "111", shift: "DAY" },
+  });
   return tr;
 }
 
@@ -38,6 +52,17 @@ function makeRequest(body: unknown) {
 describe("FID-ERP-005 — validate trước khi ghi DB", () => {
   it("travelerNo không tồn tại -> 400, không ghi gì", async () => {
     const tr = travelerNo("NOTFOUND");
+    const res = await checkPOST(makeRequest({ travelerNo: tr, status: "GOOD", checkedBy: "290" }));
+    expect(res.status).toBe(400);
+    const count = await prisma.qualityCheck.count({ where: { travelerNo: tr } });
+    expect(count).toBe(0);
+  });
+
+  // v1.2 — phát hiện qua test thật 2026-09-19 (Andy lưu Good được cho
+  // Traveler chưa hề qua máy lựa): Wrapping kiểm tra hàng ĐÃ sản xuất,
+  // Traveler chưa từng SELECT thì chưa có gì để kiểm tra.
+  it("Traveler chưa từng có SELECT -> 400, không ghi quality_checks", async () => {
+    const tr = await makeTravelerBare("NOSELECT");
     const res = await checkPOST(makeRequest({ travelerNo: tr, status: "GOOD", checkedBy: "290" }));
     expect(res.status).toBe(400);
     const count = await prisma.qualityCheck.count({ where: { travelerNo: tr } });
@@ -82,8 +107,34 @@ describe("FID-ERP-005 — validate trước khi ghi DB", () => {
       }),
     );
     expect(res.status).toBe(400);
-    const count = await prisma.stockMove.count({ where: { travelerNo: tr } });
+    const count = await prisma.stockMove.count({ where: { travelerNo: tr, moveType: "SCRAP" } });
     expect(count).toBe(0);
+  });
+});
+
+// v1.4 — cảnh báo (KHÔNG chặn) khi Traveler đã có 1 lần kiểm tra Wrapping
+// trước đó, vẫn cho ghi thêm (giống pattern `skippedDuplicates` ở
+// FID-ERP-002). Andy phát hiện qua test thật: bấm lại nhiều lần cùng
+// Traveler tạo nhiều dòng `quality_checks` trùng, im lặng không cảnh báo.
+describe("FID-ERP-005 v1.4 — cảnh báo kiểm tra Wrapping trùng lặp", () => {
+  it("lần đầu kiểm tra -> không có warning trùng lặp", async () => {
+    const tr = await makeTraveler("DUP-FIRST");
+    const res = await checkPOST(makeRequest({ travelerNo: tr, status: "GOOD", checkedBy: "290" }));
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.warnings.some((w: string) => w.includes("đã có 1 lần kiểm tra"))).toBe(false);
+  });
+
+  it("lần 2 kiểm tra cùng Traveler -> có warning, vẫn ghi thêm dòng mới", async () => {
+    const tr = await makeTraveler("DUP-SECOND");
+    await checkPOST(makeRequest({ travelerNo: tr, status: "GOOD", checkedBy: "290" }));
+    const res2 = await checkPOST(makeRequest({ travelerNo: tr, status: "HOLD", note: "kiểm tra lại", checkedBy: "290" }));
+    const data2 = await res2.json();
+    expect(res2.status).toBe(200);
+    expect(data2.warnings.some((w: string) => w.includes("đã có 1 lần kiểm tra"))).toBe(true);
+
+    const count = await prisma.qualityCheck.count({ where: { travelerNo: tr } });
+    expect(count).toBe(2);
   });
 });
 
@@ -100,7 +151,7 @@ describe("FID-ERP-005 — ghi đúng quality_checks + SCRAP", () => {
     expect(qc?.status).toBe("GOOD");
     expect(qc?.concessionBy).toBeNull();
 
-    const moves = await prisma.stockMove.count({ where: { travelerNo: tr } });
+    const moves = await prisma.stockMove.count({ where: { travelerNo: tr, moveType: "SCRAP" } });
     expect(moves).toBe(0);
   });
 
@@ -169,7 +220,7 @@ describe("FID-ERP-005 v1.1 — pack (đóng thùng + Skid#)", () => {
   }
 
   it("pack thiếu boxCount/qty/skidNo/machineCode/shift -> 400", async () => {
-    const tr = await makeTraveler("PACK-MISSING");
+    const tr = await makeTravelerBare("PACK-MISSING");
     await selectFor(tr, 1000);
     const res = await checkPOST(
       makeRequest({ travelerNo: tr, status: "GOOD", checkedBy: "290", pack: { boxCount: 5 } }),
@@ -178,7 +229,7 @@ describe("FID-ERP-005 v1.1 — pack (đóng thùng + Skid#)", () => {
   });
 
   it("pack.qty vượt số đã lựa còn có thể đóng gói -> 400, không ghi gì", async () => {
-    const tr = await makeTraveler("PACK-OVER");
+    const tr = await makeTravelerBare("PACK-OVER");
     await selectFor(tr, 100);
     const res = await checkPOST(
       makeRequest({
@@ -194,7 +245,7 @@ describe("FID-ERP-005 v1.1 — pack (đóng thùng + Skid#)", () => {
   });
 
   it("pack hợp lệ -> ghi 1 PACK (kèm boxCount) + cập nhật travelers.skidNo, cùng transaction với quality_checks", async () => {
-    const tr = await makeTraveler("PACK-OK");
+    const tr = await makeTravelerBare("PACK-OK");
     await selectFor(tr, 4800);
     const res = await checkPOST(
       makeRequest({
@@ -219,8 +270,60 @@ describe("FID-ERP-005 v1.1 — pack (đóng thùng + Skid#)", () => {
     expect(traveler?.skidNo).toBe("skid# 77");
   });
 
+  // v1.3 — cảnh báo (KHÔNG chặn) boxCount/qty phi lý so với
+  // part_control.qtyPerBox. Tái hiện đúng ca thật Andy gặp 2026-09-19:
+  // boxCount=700 cho qty=1000 (PART_NO fixture qtyPerBox=100) — trung
+  // bình 1.4 pcs/thùng, quá thấp so với chuẩn.
+  it("boxCount quá nhiều so với qty (trung bình pcs/thùng quá thấp) -> vẫn 200, có warning", async () => {
+    const tr = await makeTravelerBare("PACK-WARN-LOW");
+    await selectFor(tr, 1000);
+    const res = await checkPOST(
+      makeRequest({
+        travelerNo: tr,
+        status: "GOOD",
+        checkedBy: "290",
+        pack: { boxCount: 700, qty: 1000, skidNo: "1", machineCode: "TBL", shift: "MRNNG" },
+      }),
+    );
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.warnings.some((w: string) => w.includes("thấp bất thường"))).toBe(true);
+  });
+
+  it("qty vượt sức chứa boxCount*qtyPerBox -> vẫn 200 (đủ available), có warning", async () => {
+    const tr = await makeTravelerBare("PACK-WARN-OVERCAP");
+    await selectFor(tr, 1000);
+    const res = await checkPOST(
+      makeRequest({
+        travelerNo: tr,
+        status: "GOOD",
+        checkedBy: "290",
+        pack: { boxCount: 2, qty: 500, skidNo: "1", machineCode: "TBL", shift: "MRNNG" },
+      }),
+    );
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.warnings.some((w: string) => w.includes("VƯỢT mức này"))).toBe(true);
+  });
+
+  it("pack.shift không khớp quy ước MRNNG/AFTRN -> vẫn 200, có warning", async () => {
+    const tr = await makeTravelerBare("PACK-SHIFTWARN");
+    await selectFor(tr, 1000);
+    const res = await checkPOST(
+      makeRequest({
+        travelerNo: tr,
+        status: "GOOD",
+        checkedBy: "290",
+        pack: { boxCount: 10, qty: 1000, skidNo: "1", machineCode: "TBL", shift: "MONING" },
+      }),
+    );
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.warnings.some((w: string) => w.includes("MONING"))).toBe(true);
+  });
+
   it("2 lần pack cộng dồn vẫn không vượt SELECT — lần 2 vượt phần còn lại -> 400", async () => {
-    const tr = await makeTraveler("PACK-TWICE");
+    const tr = await makeTravelerBare("PACK-TWICE");
     await selectFor(tr, 1000);
     await checkPOST(
       makeRequest({

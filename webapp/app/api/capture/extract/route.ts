@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractCaptureRows, type CaptureDestination } from "../../../../lib/ocr/gemini";
 
-const ALLOWED_DESTINATIONS = new Set<CaptureDestination>(["po", "warehouse"]);
+const ALLOWED_DESTINATIONS = new Set<CaptureDestination>(["po", "warehouse", "po_receive"]);
 // Gemini vision chỉ nhận ảnh/PDF (inlineData) — Excel (.xlsx/.xlsm) cần
 // đường đọc khác (đọc cell trực tiếp, không phải OCR), CHƯA làm ở FID này.
 const ALLOWED_MIME_PREFIXES = ["image/"];
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
     if (typeof destination !== "string" || !ALLOWED_DESTINATIONS.has(destination as CaptureDestination)) {
       return NextResponse.json(
-        { ok: false, error: "destination phải là 'po' hoặc 'warehouse'." },
+        { ok: false, error: "destination phải là 'po', 'warehouse' hoặc 'po_receive'." },
         { status: 400 },
       );
     }

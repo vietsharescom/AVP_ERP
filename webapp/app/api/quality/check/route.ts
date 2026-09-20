@@ -9,6 +9,7 @@
 // (FID-ERP-009).
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
+import { shiftWarning } from "../../../../lib/shift";
 
 type RejectInput = { reasonCode?: unknown; qty?: unknown };
 type ConcessionInput = { by?: unknown; reason?: unknown };
@@ -136,6 +137,35 @@ export async function POST(req: NextRequest) {
     return badRequest(`Traveler "${travelerNo}" chưa tồn tại.`);
   }
 
+  // v1.2 — Kiểm tra Wrapping là kiểm tra hàng ĐÃ QUA MÁY LỰA (Xưởng) —
+  // Traveler chưa từng có SELECT thì chưa có hàng gì để kiểm tra, không
+  // cho ghi Good/Hold. Andy xác nhận 2026-09-19 (phát hiện qua test thật:
+  // route trước đó không chặn, cho lưu Good trên Traveler chưa SELECT).
+  const hasSelect = await prisma.stockMove.findFirst({
+    where: { travelerNo, moveType: "SELECT" },
+    select: { id: true },
+  });
+  if (!hasSelect) {
+    return badRequest(`Traveler "${travelerNo}" chưa qua máy lựa (SELECT) — chưa có gì để kiểm tra Wrapping.`);
+  }
+
+  // v1.4 — Trùng lặp phải CẢNH BÁO, không tự động bỏ qua/ghi đè (cùng
+  // nguyên tắc `skippedDuplicates` ở FID-ERP-002) — Traveler đã từng có
+  // 1 lần kiểm tra Wrapping trước đó vẫn CHO ghi thêm (ca thật: kiểm tra
+  // lại sau khi sửa lỗi), chỉ cảnh báo để người dùng biết đang ghi thêm
+  // chứ không phải lần đầu. Andy phát hiện qua test thật: bấm lại nhiều
+  // lần cùng Traveler tạo nhiều dòng `quality_checks` trùng im lặng.
+  const warnings: string[] = [];
+  const lastCheck = await prisma.qualityCheck.findFirst({
+    where: { travelerNo },
+    orderBy: { createdAt: "desc" },
+  });
+  if (lastCheck) {
+    warnings.push(
+      `Traveler "${travelerNo}" đã có 1 lần kiểm tra Wrapping trước đó (status=${lastCheck.status}, lúc ${lastCheck.createdAt.toISOString()}) — vẫn ghi thêm dòng mới.`,
+    );
+  }
+
   // v1.1 — không đóng gói vượt quá số đã lựa (SUM SELECT) trừ đi số đã
   // đóng trước đó (SUM PACK) — tránh đóng nhiều hơn số thực có.
   if (packRow) {
@@ -146,6 +176,32 @@ export async function POST(req: NextRequest) {
     const available = (selectAgg._sum.qty ?? 0) - (packAgg._sum.qty ?? 0);
     if (packRow.qty > available) {
       return badRequest(`pack.qty (${packRow.qty}) vượt quá số lượng đã lựa còn có thể đóng gói (còn ${available}).`);
+    }
+
+    // v1.3 — cảnh báo (KHÔNG chặn) nếu ca không khớp quy ước đã chốt
+    // (MRNNG/AFTRN, nguồn chứng từ thật, xem lib/shift.ts).
+    const packShiftWarning = shiftWarning(packRow.shift);
+    if (packShiftWarning) warnings.push(packShiftWarning);
+
+    // v1.3 — cảnh báo (KHÔNG chặn) nếu boxCount/qty phi lý so với
+    // `part_control.qtyPerBox` — phát hiện qua test thật: Andy nhập
+    // boxCount=700 cho qty=1000 (Part# có qtyPerBox=6000, tức trung bình
+    // ~1.4 pcs/thùng — sai lệch rõ ràng, nhiều khả năng gõ lộn 2 ô).
+    // Chỉ CẢNH BÁO vì đây là số liệu Xưởng tự nhập tay, không phải OCR —
+    // không có "draft" để sửa trước, chặn cứng có thể cản trở ca thật
+    // hợp lệ (thùng cuối đóng lẻ, v.v.).
+    const partControl = await prisma.partControl.findUnique({ where: { partNo: traveler.partNo } });
+    if (partControl) {
+      const impliedPerBox = packRow.qty / packRow.boxCount;
+      if (packRow.qty > packRow.boxCount * partControl.qtyPerBox) {
+        warnings.push(
+          `PACK ${packRow.boxCount} thùng x qty/thùng chuẩn ${partControl.qtyPerBox} = tối đa ${packRow.boxCount * partControl.qtyPerBox} pcs, nhưng qty gửi lên (${packRow.qty}) VƯỢT mức này — kiểm tra lại boxCount/qty.`,
+        );
+      } else if (impliedPerBox < partControl.qtyPerBox * 0.5) {
+        warnings.push(
+          `Trung bình ${Math.round(impliedPerBox)} pcs/thùng (qty=${packRow.qty} / boxCount=${packRow.boxCount}) thấp bất thường so với chuẩn ${partControl.qtyPerBox} pcs/thùng của Part# ${traveler.partNo} — kiểm tra lại có gõ lộn boxCount/qty không.`,
+        );
+      }
     }
   }
 
@@ -212,6 +268,7 @@ export async function POST(req: NextRequest) {
       scrapMoveIds: scrapMoves.map((m) => m.id),
       totalRejectQty,
       ...(packMove ? { packMoveId: packMove.id } : {}),
+      warnings,
     });
   } catch (err) {
     console.error(err);

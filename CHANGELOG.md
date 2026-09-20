@@ -324,3 +324,117 @@
   duyệt thật (FACTORY/OFFICE đăng nhập, màn hình hẹp 375px, không lỗi
   console). Giữ NGUYÊN phân quyền theo trạm (FID-ERP-011) và thiết kế
   FID-ERP-002 — chỉ đồng bộ giao diện, không đổi nghiệp vụ/bảo mật.
+
+### Fixed
+- fix: Part# OCR (CaptureGate) khớp `part_control` theo mã gốc (Finished
+  Part Number), không theo chuỗi có hậu tố [FID-ERP-002 v1.1] — phát
+  hiện khi Andy dán `GEMINI_API_KEY` thật, thử scan 1 PO thật qua trình
+  duyệt, gặp lỗi `travelers_part_no_fkey` (500). Chứng từ thật
+  (`TRAVELER SHEETS SEP 9.pdf`) có 2 field khác nhau — "Part#" (có hậu
+  tố, vd `11546389-T`) và "Finished Part Number" (mã gốc, vd `11546389`)
+  — Andy xác nhận cùng 1 sản phẩm cho mục đích đóng gói, giải quyết luôn
+  câu hỏi mở từ 2026-09-13 về ý nghĩa hậu tố Part#
+  (`BANG_MA_THAM_CHIEU_AVP_2026-09-17.xlsx` sheet `2_Hau_To_Part`). Thêm
+  `webapp/lib/part.ts` (`stripPartSuffix`) — bóc lặp hậu tố theo danh
+  sách biết trước (ưu tiên hậu tố nhiều đoạn), KHÔNG cắt theo dấu "-"
+  đầu tiên vì nhiều Part# thật dùng "-" làm 1 phần mã gốc (vd
+  `1015463X-03`, `100-5829`, kiểm chứng trong sheet `1_Part_Control`
+  cùng file). Áp dụng ở cả 2 nhánh `confirm` (po/warehouse). Thêm 3 dòng
+  `part_control` xác nhận thật vào DB dev (`11549168`/`11561645`/
+  `06504080`, đều Infasco). 4 test mới + 13 cũ = **17/17 PASS**
+  (`webapp/tests/integration/capture.test.ts`), lint sạch. Riêng
+  `1K2GZ0-00-A` (Part# thứ 4 trong PO test) vẫn không có ở bất kỳ nguồn
+  nào kể cả sau khi cắt hậu tố — xử lý ngay sau, xem bullet kế tiếp.
+
+### Data
+- data: tổng hợp `part_control` từ TOÀN BỘ nguồn thật hiện có
+  [FID-ERP-002 v1.1] — gộp `BANG_MA_THAM_CHIEU_AVP_2026-09-17.xlsx`
+  (`1_Part_Control`), `FINISHED PALLET REPORT_final.xlsm` (`PartControl`
+  + `WorkStationArchive` — sản lượng thật, dùng `# of boxes × Unit
+  Quantity = Total Quantity` làm bằng chứng dự phòng khi Part# chưa có ở
+  PartControl chính thức, vd `1K2GZ0-00` qty=4500 suy từ 4 dòng archive
+  đều khớp phép tính), `Wrapping_final.xlsm` (`QuantityControl`, đối
+  chiếu thêm) — chuẩn hoá theo mã gốc (`stripPartSuffix`) trước khi gộp,
+  1319 dòng thô → 1235 mã gốc duy nhất. Xuất file
+  `Data/PART_CONTROL_MASTER_2026-09-19.xlsx` (sheet `PART_CONTROL_MASTER`
+  đầy đủ + sheet `CAN_XEM_LAI` liệt kê 190 dòng còn thiếu/xung đột kèm
+  ghi chú cho Andy bổ sung). Nạp **1046 dòng đầy đủ/không xung đột** vào
+  `part_control` (dev DB) — bao gồm `1K2GZ0-00` (qty=4500, Infasco, xác
+  nhận thêm qua PO thật `Data/1.PO/PO PO SEP 8_193853.pdf` letterhead
+  "Infasco Nut LP"). 164/164 test cũ không hồi quy (chỉ nạp dữ liệu,
+  không đổi code/schema).
+
+### Added
+- feat: nút tắt "PO + Nhận nguyên liệu luôn (bypass)" — đích `po_receive`
+  mới ở CaptureGate [FID-ERP-002 v1.2] — quản lý cho phép scan LẠI CHÍNH
+  file PO (không cần phiếu Traveler vật lý riêng), đọc cột Pieces làm
+  luôn qty RECEIVE, ghi `travelers` (có cả `poNo` VÀ `potNo`) + 1 dòng
+  `stock_moves` RECEIVE trong 1 transaction — dùng chung code
+  path/quyền/validate với `"warehouse"` (chỉ OFFICE/ADMIN, chặn FACTORY,
+  `qty>0`). `poNo` chỉ ghi khi thật sự có giá trị (không đưa `NULL` vào
+  update) — tránh xoá mất `poNo` Traveler đã đăng ký từ trước. Đánh đổi
+  đã xác nhận với Andy: mất mốc đối chiếu độc lập "Infasco khai trên PO"
+  vs "AVP xác nhận lại qua phiếu thật" (lý do RECEIVE vốn tách khỏi PO
+  theo chuẩn Odoo Goods Receipt) — chấp nhận cho PO/khách hàng không cần
+  đối chiếu chặt. 4 test mới + 2 test UI + 17 cũ = **21/21 PASS**
+  (`webapp/tests/integration/capture.test.ts`), lint sạch, build thành
+  công.
+
+### Fixed
+- fix: GlobalSearchBar tìm ra Part# gõ CÓ hậu tố (như in trên nhãn thật)
+  [FID-ERP-004 v1.1] — Andy tìm `11547369-BR-HA-T` không ra kết quả dù
+  mã gốc `11547369` tồn tại đủ trong `part_control`. Nguyên nhân: từ
+  FID-ERP-002 v1.1, `part_no` lưu theo MÃ GỐC (cắt hậu tố), `ILIKE
+  contains` không khớp ngược khi chuỗi gõ dài hơn chuỗi đã lưu. Sửa:
+  `app/api/search/route.ts` tìm THÊM theo `stripPartSuffix(q)` (chỉ khi
+  khác `q`) cho cả `travelers.part_no` và `part_control.part_no`. 1 test
+  mới + 7 cũ = 8/8 PASS, 170/170 toàn bộ, lint sạch.
+
+### Changed
+- ui: tile "PO tồn đọng" ở trang chủ hiện thêm số Traveler tồn đọng
+  [FID-ERP-014 v1.1] — Andy chỉ ra đếm PO không phản ánh đúng khối
+  lượng việc thật (1 PO có thể trải rất nhiều Traveler, dữ liệu thật lúc
+  sửa: 3 PO nhưng 36 Traveler tồn đọng). `app/page.tsx` cộng dồn field
+  `outstanding` (đã có sẵn trên mỗi `PoProgressReport`, không cần query
+  DB mới) hiện dạng "3 / 36 Traveler". 170/170 test cũ không hồi quy,
+  lint sạch, build thành công.
+
+### Fixed
+- fix: Kiểm tra Wrapping (Good/Hold) bắt buộc Traveler đã có `SELECT`
+  [FID-ERP-005 v1.2] — Andy test thật trên trình duyệt: Traveler `717844`
+  chưa hề qua máy lựa (chỉ mới đăng ký PO) vẫn lưu được Good/Hold, vì
+  route `app/api/quality/check/route.ts` trước đó chỉ validate Traveler
+  tồn tại, không validate đã SELECT. Thêm kiểm tra `stockMove.findFirst`
+  (`moveType='SELECT'`) trước khi cho ghi — 400 rõ ràng nếu chưa có. 2
+  dòng `quality_checks` test thật đã lỡ ghi cho `717844` (append-only,
+  không xoá được) vẫn còn trong DB dev, vô hại. 1 test mới + 16 cũ (sửa
+  fixture `makeTraveler`/`makeTravelerBare`) = 17/17 PASS
+  (`webapp/tests/integration/quality-check.test.ts`), 171/171 toàn bộ,
+  lint sạch, build thành công.
+- fix: cảnh báo (không chặn) boxCount/qty phi lý ở PACK + shift không
+  khớp quy ước [FID-ERP-005 v1.3, FID-ERP-003 v1.2] — Andy test thật:
+  `boxCount=700` cho `qty=1000` (Part# `qtyPerBox=6000` trong
+  `part_control`) vẫn lưu được không cảnh báo gì (trung bình 1.4
+  pcs/thùng, rõ ràng gõ lộn 2 ô), và `shift="MONING"` (gõ nhầm) cũng
+  không bị phát hiện. Kiểm tra chứng từ thật `WRAPPING SUMMARY`
+  (`D:\AVP_AI\Data\4.WRAPPING\WRAPPING SUMMARY-SEP 4.jpeg`, đọc THAM
+  KHẢO theo yêu cầu rõ của Andy) xác nhận quy ước ca chỉ có `MRNNG`/
+  `AFTRN` — thêm `webapp/lib/shift.ts` (`shiftWarning()`), áp dụng ở cả
+  `/api/factory/select/confirm` (SELECT) và `/api/quality/check` (PACK).
+  Riêng mã máy/mã nhân viên trong `BANG_MA_THAM_CHIEU_AVP_2026-09-17.xlsx`
+  KHÔNG dùng làm rule — 2 sheet đó tự ghi "chưa xác nhận", để dành chờ
+  Owner. Cả 2 cảnh báo đều KHÔNG chặn ghi (trả thêm field `warnings[]`),
+  vì đây là số Xưởng tự nhập tay không qua draft/OCR để sửa trước. 5
+  test mới (2 shift ở `factory-select.test.ts` + 3 boxCount/shift ở
+  `quality-check.test.ts`) + test cũ không hồi quy = **176/176 PASS**,
+  lint sạch, `tsc --noEmit` sạch, build thành công.
+- fix: cảnh báo kiểm tra Wrapping trùng lặp + bước "Tra" bắt buộc trước
+  khi lưu [FID-ERP-005 v1.4, FID-ERP-003 v1.3] — Andy bấm "Xác nhận &
+  Lưu" nhiều lần cho cùng Traveler `716958`, mỗi lần ghi thêm 1 dòng
+  `quality_checks` GOOD (4 dòng trùng), không cảnh báo. API
+  `/api/quality/check` giờ cảnh báo (không chặn) nếu Traveler đã có lần
+  kiểm tra trước (status + thời điểm), giống `skippedDuplicates` ở
+  FID-ERP-002. UI `/wrapping/check` và `/factory/select` thêm nút "Tra"
+  (tái dùng `/api/search`, FID-ERP-004) — `canSubmit` đòi đã tra ĐÚNG
+  Traveler# đang gõ, đổi số thì phải tra lại. 2 test mới (cảnh báo trùng)
+  + test cũ không hồi quy = **178/178 PASS**, lint sạch, build thành công.

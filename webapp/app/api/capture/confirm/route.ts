@@ -1,17 +1,23 @@
-// FID-ERP-002 §4b — Ghi Postgres SAU KHI người xác nhận (CCP-1). 2 nhánh
+// FID-ERP-002 §4b — Ghi Postgres SAU KHI người xác nhận (CCP-1). 3 nhánh
 // theo destination — xem docs/features/FID-ERP-002_20260918.md §4b/§5.
 // FID-ERP-007 §4a — khi potNo khớp GAYLORD (Traveler trả lại rework), CẢ
-// 2 destination chỉ gắn cờ isReturnForRework + best-effort reworkOfPsNo/
+// 3 destination chỉ gắn cờ isReturnForRework + best-effort reworkOfPsNo/
 // reworkOfLotNo, KHÔNG ghi stock_moves nào (số lượng thật ghi ở
 // FID-ERP-003 lúc lựa lại xong — xem docs/features/FID-ERP-007_20260918.md §4b).
 // FID-ERP-011 §4d — `sourceStation` ĐỌC TỪ SESSION (đăng nhập theo trạm),
 // KHÔNG còn nhận từ body client gửi lên (client gửi gì cũng bị bỏ qua).
+// v1.2 (2026-09-19) — "po_receive": nút tắt quản lý cho phép, scan LẠI
+// CHÍNH file PO để vừa đăng ký poNo vừa ghi RECEIVE luôn (đọc Pieces làm
+// qty), bypass yêu cầu phiếu Traveler vật lý riêng. Dùng CHUNG code path
+// với "warehouse" (cùng validate qty>0 + cùng ghi stock_moves RECEIVE
+// trong 1 transaction), chỉ khác là upsert Traveler có thêm `poNo`.
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
 import { isGaylordReturn, findReworkOrigin } from "../../../../lib/rework";
 import { getStationFromRequest } from "../../../../lib/auth";
+import { stripPartSuffix } from "../../../../lib/part";
 
-type CaptureDestination = "po" | "warehouse";
+type CaptureDestination = "po" | "warehouse" | "po_receive";
 
 type ConfirmRow = {
   travelerNo?: unknown;
@@ -30,7 +36,8 @@ type ConfirmBody = {
 
 type ReturnForReworkEntry = { travelerNo: string; reworkOfPsNo: string | null; reworkOfLotNo: string | null };
 
-const ALLOWED_DESTINATIONS = new Set<CaptureDestination>(["po", "warehouse"]);
+const ALLOWED_DESTINATIONS = new Set<CaptureDestination>(["po", "warehouse", "po_receive"]);
+const RECEIVE_DESTINATIONS = new Set<CaptureDestination>(["warehouse", "po_receive"]);
 
 function badRequest(error: string) {
   return NextResponse.json({ ok: false, error }, { status: 400 });
@@ -47,7 +54,7 @@ export async function POST(req: NextRequest) {
   const { destination, rows, confirmedBy, deviceId } = body;
 
   if (typeof destination !== "string" || !ALLOWED_DESTINATIONS.has(destination as CaptureDestination)) {
-    return badRequest("destination phải là 'po' hoặc 'warehouse'.");
+    return badRequest("destination phải là 'po', 'warehouse' hoặc 'po_receive'.");
   }
   if (!Array.isArray(rows) || rows.length === 0) {
     return badRequest("rows không được rỗng.");
@@ -71,7 +78,7 @@ export async function POST(req: NextRequest) {
   // Middleware đã chặn trạm sai trước khi tới đây — kiểm tra LẠI ở route
   // (defense in depth, không chỉ tin middleware).
   const station = getStationFromRequest(req);
-  if (destination === "warehouse") {
+  if (RECEIVE_DESTINATIONS.has(destination as CaptureDestination)) {
     if (station !== "OFFICE" && station !== "ADMIN") {
       return badRequest("Chưa đăng nhập đúng trạm (OFFICE hoặc ADMIN) — Xưởng không có cổng này.");
     }
@@ -91,7 +98,7 @@ export async function POST(req: NextRequest) {
       const returnForRework: ReturnForReworkEntry[] = [];
       for (const row of typedRows) {
         const travelerNo = row.travelerNo as string;
-        const partNo = row.partNo as string;
+        const partNo = stripPartSuffix(row.partNo as string);
         const poNo = typeof row.poNo === "string" ? row.poNo : null;
         const potNo = typeof row.potNo === "string" ? row.potNo : null;
 
@@ -121,7 +128,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // destination === "warehouse"
+    // destination === "warehouse" | "po_receive"
     const skippedDuplicates: string[] = [];
     const moveIds: number[] = [];
     const returnForRework: ReturnForReworkEntry[] = [];
@@ -129,8 +136,14 @@ export async function POST(req: NextRequest) {
 
     for (const row of typedRows) {
       const travelerNo = row.travelerNo as string;
-      const partNo = row.partNo as string;
+      const partNo = stripPartSuffix(row.partNo as string);
       const potNo = typeof row.potNo === "string" ? row.potNo : null;
+      // v1.2 — chỉ "po_receive" thật sự gửi poNo (OCR đọc từ chính file
+      // PO); "warehouse" (phiếu Traveler vật lý) không có field này —
+      // KHÔNG đưa `poNo: null` vào update/create, tránh xoá mất poNo đã
+      // đăng ký từ trước (destination "po").
+      const poNo = typeof row.poNo === "string" && row.poNo.trim() !== "" ? row.poNo : null;
+      const poNoField = poNo ? { poNo } : {};
 
       if (isGaylordReturn(potNo)) {
         // FID-ERP-007 §4a/§5 — chỉ gắn cờ, KHÔNG ghi stock_moves (kể cả
@@ -138,8 +151,8 @@ export async function POST(req: NextRequest) {
         const origin = await findReworkOrigin(travelerNo);
         await prisma.traveler.upsert({
           where: { travelerNo },
-          update: { potNo, isReturnForRework: true, ...origin },
-          create: { travelerNo, partNo, potNo, isReturnForRework: true, ...origin },
+          update: { potNo, isReturnForRework: true, ...poNoField, ...origin },
+          create: { travelerNo, partNo, potNo, isReturnForRework: true, ...poNoField, ...origin },
         });
         returnForRework.push({ travelerNo, ...origin });
         saved += 1;
@@ -162,8 +175,8 @@ export async function POST(req: NextRequest) {
       const [, move] = await prisma.$transaction([
         prisma.traveler.upsert({
           where: { travelerNo },
-          update: { potNo },
-          create: { travelerNo, partNo, potNo },
+          update: { potNo, ...poNoField },
+          create: { travelerNo, partNo, potNo, ...poNoField },
         }),
         prisma.stockMove.create({
           data: {

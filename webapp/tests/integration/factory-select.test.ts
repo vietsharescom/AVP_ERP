@@ -194,4 +194,39 @@ describe("FID-ERP-003 — ghi đúng SELECT + SCRAP + REWORK", () => {
     const count = await prisma.stockMove.count({ where: { travelerNo: tr } });
     expect(count).toBe(0);
   });
+
+  // v1.1 (2026-09-19) — cảnh báo (KHÔNG chặn) ca không khớp quy ước đã
+  // chốt MRNNG/AFTRN (nguồn WRAPPING SUMMARY thật) — phát hiện qua test
+  // thật Andy gõ nhầm "MONING".
+  it("shift không khớp quy ước MRNNG/AFTRN -> vẫn 200, có warning", async () => {
+    const tr = await makeTraveler("SHIFTWARN");
+    const res = await confirmPOST(
+      makeConfirmRequest({
+        travelerNo: tr,
+        machineCode: "MC112",
+        operatorCode: "275",
+        shift: "MONING",
+        selectQty: 1000,
+      }),
+    );
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.warnings.some((w: string) => w.includes("MONING"))).toBe(true);
+  });
+
+  it("shift khớp quy ước (MRNNG/AFTRN) -> không có warning", async () => {
+    const tr = await makeTraveler("SHIFTOK");
+    const res = await confirmPOST(
+      makeConfirmRequest({
+        travelerNo: tr,
+        machineCode: "MC112",
+        operatorCode: "275",
+        shift: "AFTRN",
+        selectQty: 1000,
+      }),
+    );
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.warnings).toEqual([]);
+  });
 });

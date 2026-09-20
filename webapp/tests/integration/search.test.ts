@@ -90,4 +90,21 @@ describe("FID-ERP-004 — GET /api/search", () => {
     expect(data.packingSlips).toEqual([]);
     expect(data.partControls).toEqual([]);
   });
+
+  // Phát hiện 2026-09-19: từ FID-ERP-002 v1.1, part_control/travelers
+  // lưu Part# theo MÃ GỐC (đã cắt hậu tố) — gõ đúng mã IN TRÊN NHÃN thật
+  // (có hậu tố) trước đó không ra kết quả nào vì `contains` không khớp
+  // ngược (chuỗi dài hơn không "nằm trong" chuỗi ngắn hơn đã lưu).
+  it("gõ Part# CÓ hậu tố (như in trên nhãn) vẫn tìm ra Traveler/partControl lưu theo mã gốc", async () => {
+    const basePartNo = `TESTBASE-SRCH-${RUN}`;
+    const suffixedQuery = `${basePartNo}-A`; // "-A" là hậu tố biết trước (lib/part.ts)
+    const tr = `TESTTR-SRCH-SUFFIX-${RUN}`;
+    await prisma.partControl.create({ data: { partNo: basePartNo, qtyPerBox: 100, client: "Infasco" } });
+    await prisma.traveler.create({ data: { travelerNo: tr, partNo: basePartNo, poNo: PO_NO } });
+
+    const res = await searchGET(asNextRequest(`http://localhost/api/search?q=${suffixedQuery}`));
+    const data = await res.json();
+    expect(data.travelers.some((t: { travelerNo: string }) => t.travelerNo === tr)).toBe(true);
+    expect(data.partControls.some((pc: { partNo: string }) => pc.partNo === basePartNo)).toBe(true);
+  });
 });

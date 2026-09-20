@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../../lib/prisma";
 import { generateLotPlaceholder } from "../../../../../lib/lot";
 import { hasReturnMove } from "../../../../../lib/rework";
+import { shiftWarning } from "../../../../../lib/shift";
 
 type DefectInput = { reasonCode?: unknown; qty?: unknown };
 type ReworkInput = { qty?: unknown; note?: unknown };
@@ -201,6 +202,12 @@ export async function POST(req: NextRequest) {
       ]);
     }
 
+    // v1.1 — cảnh báo (KHÔNG chặn) nếu ca không khớp quy ước đã chốt
+    // (MRNNG/AFTRN, nguồn chứng từ thật, xem lib/shift.ts).
+    const warnings: string[] = [];
+    const selectShiftWarning = shiftWarning(normShift);
+    if (selectShiftWarning) warnings.push(selectShiftWarning);
+
     return NextResponse.json({
       ok: true,
       selectMoveId: selectMove.id,
@@ -208,6 +215,7 @@ export async function POST(req: NextRequest) {
       totalDefectQty,
       ...(reworkMove ? { reworkMoveId: reworkMove.id } : {}),
       ...(returnMove ? { returnMoveId: returnMove.id } : {}),
+      warnings,
     });
   } catch (err) {
     console.error(err);

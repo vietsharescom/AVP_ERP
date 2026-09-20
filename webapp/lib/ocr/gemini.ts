@@ -6,7 +6,10 @@
 // travelerNo/partNo/poNo/potNo/qty của Postgres, không copy tên cột Sheet.
 import { GoogleGenAI } from "@google/genai";
 
-export type CaptureDestination = "po" | "warehouse";
+// "po_receive" (v1.2) — nút tắt: scan LẠI CHÍNH file PO, đọc cột Pieces
+// làm luôn qty RECEIVE (bypass yêu cầu phiếu Traveler vật lý riêng) —
+// Andy xác nhận 2026-09-19, xem docs/features/FID-ERP-002_20260918.md.
+export type CaptureDestination = "po" | "warehouse" | "po_receive";
 
 export type CaptureRow = {
   travelerNo: string | null;
@@ -67,15 +70,31 @@ const CAPTURE_SCHEMA = {
 };
 
 function instructionsFor(destination: CaptureDestination): string {
-  return destination === "po"
-    ? "This is an Infasco PO email/document (raw material forecast — goods have NOT physically " +
+  switch (destination) {
+    case "po":
+      return (
+        "This is an Infasco PO email/document (raw material forecast — goods have NOT physically " +
         "arrived yet). Read travelerNo (Traveler# barcode number), partNo (Part #), and poNo " +
         "(PO Number) for every row. Do not invent values for cells that are blank or illegible — " +
         "set that field to null and list its name in lowConfidenceFields instead of guessing."
-    : "This is an AVP traveler form for raw material that has physically arrived at the warehouse. " +
+      );
+    case "po_receive":
+      return (
+        "This is an Infasco PO email/document, being used as a management-approved shortcut to ALSO " +
+        "confirm the raw material has physically arrived (skips scanning a separate physical traveler " +
+        "tag). Read travelerNo (Traveler# barcode number), partNo (Part #), poNo (PO Number), potNo " +
+        "(Pot #/GAYLORD), and qty (read from the 'Pieces' column — this is the quantity being " +
+        "received) for every row. Do not invent values for cells that are blank or illegible — set " +
+        "that field to null and list its name in lowConfidenceFields instead of guessing."
+      );
+    case "warehouse":
+      return (
+        "This is an AVP traveler form for raw material that has physically arrived at the warehouse. " +
         "Read travelerNo (Traveler# barcode number), partNo (Part #), potNo (Pot #/GAYLORD), and qty " +
         "(quantity received) for every row. Do not invent values for cells that are blank or illegible " +
-        "— set that field to null and list its name in lowConfidenceFields instead of guessing.";
+        "— set that field to null and list its name in lowConfidenceFields instead of guessing."
+      );
+  }
 }
 
 export async function extractCaptureRows(

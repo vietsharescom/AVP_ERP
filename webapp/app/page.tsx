@@ -13,7 +13,13 @@ import { getProductionReport } from "../lib/reports/productionReport";
 import { tokens } from "../lib/ui/tokens";
 import { filterNavGroups } from "../lib/ui/navLinks";
 
-type TodoStats = { outstandingPos: number; overduePos: number; reworkTravelers: number; awaitingShipment: number };
+type TodoStats = {
+  outstandingPos: number;
+  outstandingTravelers: number;
+  overduePos: number;
+  reworkTravelers: number;
+  awaitingShipment: number;
+};
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -27,13 +33,28 @@ async function loadTodoStats(): Promise<TodoStats> {
   ]);
   return {
     outstandingPos: poReports.length,
+    outstandingTravelers: poReports.reduce((sum, r) => sum + r.outstanding, 0),
     overduePos: poReports.filter((r) => r.isOverdue).length,
     reworkTravelers: poReports.reduce((sum, r) => sum + r.reworkTravelers.length, 0),
     awaitingShipment: production.finished_goods_awaiting_shipment,
   };
 }
 
-function TodoTile({ label, value, href }: { label: string; value: number; href: string }) {
+// v1.1 (2026-09-19) — "PO tồn đọng" hiện CẢ 2 số (PO + Traveler): PO
+// không phải đơn vị công việc (1 PO có thể trải trên rất nhiều Traveler,
+// vd 1 PO = 28 Traveler thật) — chỉ đếm PO dễ khiến khối lượng việc thật
+// trông NHẸ hơn hẳn con số Traveler cần xử lý. Andy xác nhận 2026-09-19.
+function TodoTile({
+  label,
+  value,
+  subValue,
+  href,
+}: {
+  label: string;
+  value: number;
+  subValue?: string;
+  href: string;
+}) {
   return (
     <Link
       href={href}
@@ -48,7 +69,10 @@ function TodoTile({ label, value, href }: { label: string; value: number; href: 
       }}
     >
       <div style={{ fontSize: 12, color: tokens.color.textMuted }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 600 }}>{value}</div>
+      <div style={{ fontSize: 24, fontWeight: 600 }}>
+        {value}
+        {subValue && <span style={{ fontSize: 14, fontWeight: 400, color: tokens.color.textMuted }}> / {subValue}</span>}
+      </div>
     </Link>
   );
 }
@@ -76,7 +100,12 @@ export default async function HomePage() {
             Việc cần làm
           </h2>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <TodoTile label="PO tồn đọng" value={todo.outstandingPos} href="/reports/po-progress" />
+            <TodoTile
+              label="PO tồn đọng (PO / Traveler)"
+              value={todo.outstandingPos}
+              subValue={`${todo.outstandingTravelers} Traveler`}
+              href="/reports/po-progress"
+            />
             <TodoTile label="PO trễ hạn" value={todo.overduePos} href="/reports/po-progress" />
             <TodoTile label="Traveler rework" value={todo.reworkTravelers} href="/reports/po-progress" />
             <TodoTile label="Chờ xuất hàng" value={todo.awaitingShipment} href="/reports/production" />

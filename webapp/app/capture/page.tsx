@@ -9,7 +9,7 @@ import { useState } from "react";
 import PageContainer from "../../components/PageContainer";
 import { tokens } from "../../lib/ui/tokens";
 
-type Destination = "po" | "warehouse";
+type Destination = "po" | "warehouse" | "po_receive";
 
 type CaptureRow = {
   travelerNo: string | null;
@@ -30,14 +30,20 @@ type ConfirmResult = {
 const DESTINATIONS: { value: Destination; label: string }[] = [
   { value: "po", label: "1. PO tham khảo — dự báo" },
   { value: "warehouse", label: "2. Kho nguyên liệu — đã nhận thật" },
+  { value: "po_receive", label: "3. PO + Nhận nguyên liệu luôn (bypass)" },
 ];
+
+// Đích nào ghi RECEIVE (cần qty > 0) — "warehouse" (phiếu Traveler vật
+// lý) và "po_receive" (v1.2 — nút tắt quản lý cho phép, scan lại chính
+// PO để bypass yêu cầu phiếu Traveler riêng, xem FID-ERP-002 §10).
+const RECEIVE_DESTINATIONS = new Set<Destination>(["warehouse", "po_receive"]);
 
 // Field nào bắt buộc phải điền trước khi bấm "Xác nhận & Lưu" — tách riêng
 // thành hàm thuần để test được logic disable nút mà không cần render DOM
 // (xem tests/integration/capture.test.ts, Test Criteria FID-ERP-002 §7).
 export function isCaptureRowIncomplete(row: CaptureRow, destination: Destination): boolean {
   if (!row.travelerNo?.trim() || !row.partNo?.trim()) return true;
-  if (destination === "warehouse" && (row.qty == null || row.qty <= 0)) return true;
+  if (RECEIVE_DESTINATIONS.has(destination) && (row.qty == null || row.qty <= 0)) return true;
   return false;
 }
 
@@ -227,8 +233,8 @@ export default function CapturePage() {
             <tr>
               <th style={{ textAlign: "left" }}>Traveler#</th>
               <th style={{ textAlign: "left" }}>Part#</th>
-              {destination === "po" && <th style={{ textAlign: "left" }}>PO#</th>}
-              {destination === "warehouse" && (
+              {(destination === "po" || destination === "po_receive") && <th style={{ textAlign: "left" }}>PO#</th>}
+              {RECEIVE_DESTINATIONS.has(destination) && (
                 <>
                   <th style={{ textAlign: "left" }}>Pot#</th>
                   <th style={{ textAlign: "left" }}>Qty</th>
@@ -256,12 +262,12 @@ export default function CapturePage() {
                       style={{ borderColor: row.lowConfidenceFields.includes("partNo") ? "#dc2626" : undefined }}
                     />
                   </td>
-                  {destination === "po" && (
+                  {(destination === "po" || destination === "po_receive") && (
                     <td>
                       <input value={row.poNo ?? ""} onChange={(e) => updateRow(idx, { poNo: e.target.value })} />
                     </td>
                   )}
-                  {destination === "warehouse" && (
+                  {RECEIVE_DESTINATIONS.has(destination) && (
                     <>
                       <td>
                         <input value={row.potNo ?? ""} onChange={(e) => updateRow(idx, { potNo: e.target.value })} />

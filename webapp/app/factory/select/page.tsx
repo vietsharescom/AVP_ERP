@@ -16,6 +16,19 @@ type ConfirmResult = {
   scrapMoveIds: number[];
   totalDefectQty: number;
   reworkMoveId?: number;
+  warnings?: string[];
+};
+
+// v1.2 — bước "Tra" trước khi cho sửa/lưu (Andy yêu cầu 2026-09-19, cùng
+// lý do FID-ERP-005 §13 — gõ Traveler# xong lưu ngay không có gì xem lại
+// trước). Tái dùng `/api/search` sẵn có (FID-ERP-004).
+type TravelerLookup = {
+  travelerNo: string;
+  partNo: string;
+  poNo: string | null;
+  lotNo: string | null;
+  shipped: boolean;
+  lastMoveType: string | null;
 };
 
 export default function FactorySelectPage() {
@@ -32,6 +45,37 @@ export default function FactorySelectPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ConfirmResult | null>(null);
+  const [lookup, setLookup] = useState<TravelerLookup | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [lookingUp, setLookingUp] = useState(false);
+
+  function onTravelerNoChange(value: string) {
+    setTravelerNo(value);
+    setLookup(null);
+    setLookupError(null);
+  }
+
+  async function doLookup() {
+    if (travelerNo.trim() === "") return;
+    setLookingUp(true);
+    setLookupError(null);
+    setLookup(null);
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(travelerNo.trim())}`);
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Tra thất bại.");
+      const found = (data.travelers as TravelerLookup[]).find((t) => t.travelerNo === travelerNo.trim());
+      if (!found) {
+        setLookupError(`Không tìm thấy Traveler "${travelerNo.trim()}" — cần ghi RECEIVE ở Kho nguyên liệu trước.`);
+        return;
+      }
+      setLookup(found);
+    } catch (err) {
+      setLookupError(err instanceof Error ? err.message : "Đã có lỗi xảy ra.");
+    } finally {
+      setLookingUp(false);
+    }
+  }
 
   useEffect(() => {
     fetch("/api/factory/defect-types")
@@ -58,6 +102,7 @@ export default function FactorySelectPage() {
 
   const canSubmit =
     travelerNo.trim() !== "" &&
+    lookup?.travelerNo === travelerNo.trim() &&
     machineCode.trim() !== "" &&
     operatorCode.trim() !== "" &&
     shift.trim() !== "" &&
@@ -88,6 +133,8 @@ export default function FactorySelectPage() {
       if (!res.ok || !data.ok) throw new Error(data.error || "Lưu thất bại.");
       setResult(data);
       setTravelerNo("");
+      setLookup(null);
+      setLookupError(null);
       setSelectQty(null);
       setDefects([]);
       setReworkEnabled(false);
@@ -109,18 +156,62 @@ export default function FactorySelectPage() {
 
       {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
       {result && (
-        <p style={{ color: "#166534" }}>
-          Đã lưu: SELECT #{result.selectMoveId}
-          {result.scrapMoveIds.length > 0 && `, ${result.scrapMoveIds.length} SCRAP (tổng defect ${result.totalDefectQty})`}
-          {result.reworkMoveId != null && `, REWORK #${result.reworkMoveId}`}.
+        <>
+          <p style={{ color: "#166534" }}>
+            Đã lưu: SELECT #{result.selectMoveId}
+            {result.scrapMoveIds.length > 0 && `, ${result.scrapMoveIds.length} SCRAP (tổng defect ${result.totalDefectQty})`}
+            {result.reworkMoveId != null && `, REWORK #${result.reworkMoveId}`}.
+          </p>
+          {result.warnings != null && result.warnings.length > 0 && (
+            <div style={{ marginBottom: 12, color: "#92400e" }}>
+              {result.warnings.map((w, i) => (
+                <div key={i}>⚠️ {w}</div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      <label style={{ display: "block", marginBottom: 8 }}>
+        Traveler#
+        <div style={{ display: "flex", gap: 6, maxWidth: 400 }}>
+          <input
+            value={travelerNo}
+            onChange={(e) => onTravelerNoChange(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && doLookup()}
+            style={{ flex: 1 }}
+          />
+          <button type="button" onClick={doLookup} disabled={lookingUp || travelerNo.trim() === ""}>
+            {lookingUp ? "Đang tra..." : "Tra"}
+          </button>
+        </div>
+      </label>
+
+      {lookupError && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{lookupError}</p>}
+      {lookup && (
+        <div
+          style={{
+            border: `1px solid ${tokens.color.border}`,
+            borderRadius: 6,
+            padding: 10,
+            marginBottom: 16,
+            fontSize: 13,
+          }}
+        >
+          <strong>Traveler {lookup.travelerNo}</strong> · Part# {lookup.partNo}
+          {lookup.poNo && ` · PO ${lookup.poNo}`}
+          {lookup.lotNo && ` · Lot ${lookup.lotNo}`}
+          {lookup.lastMoveType && ` · Gần nhất: ${lookup.lastMoveType}`}
+          {lookup.shipped && " · ĐÃ XUẤT"}
+        </div>
+      )}
+      {!lookup && travelerNo.trim() !== "" && !lookupError && (
+        <p style={{ fontSize: 13, color: "#92400e", marginBottom: 16 }}>
+          ⚠️ Bấm &quot;Tra&quot; để xem lại thông tin Traveler trước khi nhập liệu/lưu.
         </p>
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-        <label>
-          Traveler#
-          <input value={travelerNo} onChange={(e) => setTravelerNo(e.target.value)} style={{ display: "block", width: "100%" }} />
-        </label>
         <label>
           Số lượng lựa được (PASS)
           <input

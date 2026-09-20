@@ -17,6 +17,20 @@ type CheckResult = {
   scrapMoveIds: number[];
   totalRejectQty: number;
   packMoveId?: number;
+  warnings?: string[];
+};
+
+// v1.4 — bước "Tra" trước khi cho sửa/lưu (Andy yêu cầu 2026-09-19, sau
+// khi phát hiện gõ Traveler# xong bấm Lưu ngay không có gì xem lại
+// trước). Tái dùng `/api/search` sẵn có (FID-ERP-004) thay vì viết route
+// riêng — đã trả đủ Part#/PO#/Lot#/lastMoveType/shipped.
+type TravelerLookup = {
+  travelerNo: string;
+  partNo: string;
+  poNo: string | null;
+  lotNo: string | null;
+  shipped: boolean;
+  lastMoveType: string | null;
 };
 
 export default function WrappingCheckPage() {
@@ -37,6 +51,39 @@ export default function WrappingCheckPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CheckResult | null>(null);
+  const [lookup, setLookup] = useState<TravelerLookup | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [lookingUp, setLookingUp] = useState(false);
+
+  function onTravelerNoChange(value: string) {
+    setTravelerNo(value);
+    // Đổi Traveler# thì lookup cũ hết hiệu lực — bắt tra lại, tránh xác
+    // nhận nhầm thông tin của 1 Traveler khác đã tra trước đó.
+    setLookup(null);
+    setLookupError(null);
+  }
+
+  async function doLookup() {
+    if (travelerNo.trim() === "") return;
+    setLookingUp(true);
+    setLookupError(null);
+    setLookup(null);
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(travelerNo.trim())}`);
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Tra thất bại.");
+      const found = (data.travelers as TravelerLookup[]).find((t) => t.travelerNo === travelerNo.trim());
+      if (!found) {
+        setLookupError(`Không tìm thấy Traveler "${travelerNo.trim()}".`);
+        return;
+      }
+      setLookup(found);
+    } catch (err) {
+      setLookupError(err instanceof Error ? err.message : "Đã có lỗi xảy ra.");
+    } finally {
+      setLookingUp(false);
+    }
+  }
 
   function addRejectRow() {
     setRejects((prev) => [...prev, { reasonCode: "", qty: null }]);
@@ -52,6 +99,7 @@ export default function WrappingCheckPage() {
 
   const canSubmit =
     travelerNo.trim() !== "" &&
+    lookup?.travelerNo === travelerNo.trim() &&
     checkedBy.trim() !== "" &&
     (status !== "HOLD" || note.trim() !== "") &&
     rejects.every((r) => r.reasonCode.trim() !== "" && r.qty != null && r.qty > 0) &&
@@ -97,6 +145,8 @@ export default function WrappingCheckPage() {
       if (!res.ok || !data.ok) throw new Error(data.error || "Lưu thất bại.");
       setResult(data);
       setTravelerNo("");
+      setLookup(null);
+      setLookupError(null);
       setStatus("GOOD");
       setNote("");
       setRejects([]);
@@ -125,23 +175,66 @@ export default function WrappingCheckPage() {
 
       {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
       {result && (
-        <p style={{ color: "#166534" }}>
-          Đã lưu kiểm tra #{result.qualityCheckId}
-          {result.scrapMoveIds.length > 0 && ` — ${result.scrapMoveIds.length} reject (tổng ${result.totalRejectQty})`}
-          {result.packMoveId != null && ` — đã đóng gói (PACK #${result.packMoveId})`}.
-        </p>
+        <>
+          <p style={{ color: "#166534" }}>
+            Đã lưu kiểm tra #{result.qualityCheckId}
+            {result.scrapMoveIds.length > 0 && ` — ${result.scrapMoveIds.length} reject (tổng ${result.totalRejectQty})`}
+            {result.packMoveId != null && ` — đã đóng gói (PACK #${result.packMoveId})`}.
+          </p>
+          {result.warnings != null && result.warnings.length > 0 && (
+            <div style={{ marginBottom: 12, color: "#92400e" }}>
+              {result.warnings.map((w, i) => (
+                <div key={i}>⚠️ {w}</div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 8 }}>
         <label>
           Traveler#
-          <input value={travelerNo} onChange={(e) => setTravelerNo(e.target.value)} style={{ display: "block", width: "100%" }} />
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              value={travelerNo}
+              onChange={(e) => onTravelerNoChange(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && doLookup()}
+              style={{ flex: 1 }}
+            />
+            <button type="button" onClick={doLookup} disabled={lookingUp || travelerNo.trim() === ""}>
+              {lookingUp ? "Đang tra..." : "Tra"}
+            </button>
+          </div>
         </label>
         <label>
           Người kiểm tra
           <input value={checkedBy} onChange={(e) => setCheckedBy(e.target.value)} style={{ display: "block", width: "100%" }} />
         </label>
       </div>
+
+      {lookupError && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{lookupError}</p>}
+      {lookup && (
+        <div
+          style={{
+            border: `1px solid ${tokens.color.border}`,
+            borderRadius: 6,
+            padding: 10,
+            marginBottom: 16,
+            fontSize: 13,
+          }}
+        >
+          <strong>Traveler {lookup.travelerNo}</strong> · Part# {lookup.partNo}
+          {lookup.poNo && ` · PO ${lookup.poNo}`}
+          {lookup.lotNo && ` · Lot ${lookup.lotNo}`}
+          {lookup.lastMoveType && ` · Gần nhất: ${lookup.lastMoveType}`}
+          {lookup.shipped && " · ĐÃ XUẤT"}
+        </div>
+      )}
+      {!lookup && travelerNo.trim() !== "" && !lookupError && (
+        <p style={{ fontSize: 13, color: "#92400e", marginBottom: 16 }}>
+          ⚠️ Bấm &quot;Tra&quot; để xem lại thông tin Traveler trước khi kiểm tra/lưu.
+        </p>
+      )}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         {(["GOOD", "HOLD"] as Status[]).map((s) => (

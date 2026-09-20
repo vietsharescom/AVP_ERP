@@ -16,6 +16,7 @@ import { POST as confirmPOST } from "../../app/api/capture/confirm/route";
 import { isCaptureRowIncomplete } from "../../app/capture/page";
 import { prisma } from "../../lib/prisma";
 import { COOKIE_NAME, createSessionCookieValue, type Station } from "../../lib/auth";
+import { stripPartSuffix } from "../../lib/part";
 
 const RUN = Date.now().toString();
 const PART_NO = `TESTPART-CAP-${RUN}`;
@@ -130,6 +131,42 @@ describe("FID-ERP-002 — /api/capture/confirm destination='po'", () => {
     const moves = await prisma.stockMove.count({ where: { travelerNo: tr } });
     expect(moves).toBe(0);
   });
+
+  // Xác nhận 2026-09-19 bằng chứng từ thật `TRAVELER SHEETS SEP 9.pdf` —
+  // "Part#" (có hậu tố, vd "-T") và "Finished Part Number" (mã gốc) là
+  // CÙNG 1 sản phẩm cho mục đích part_control. OCR đọc "Part#" (có hậu
+  // tố) nhưng phải khớp part_control theo mã gốc, xem lib/part.ts.
+  it("Part# OCR có hậu tố (vd '-A') khớp part_control theo mã gốc (Finished Part Number)", async () => {
+    const tr = travelerNo("PO-SUFFIX");
+    const res = await confirmPOST(
+      makeConfirmRequest({
+        destination: "po",
+        rows: [{ travelerNo: tr, partNo: `${PART_NO}-A`, poNo: "PO-SUFFIX" }],
+        confirmedBy: "111",
+      }),
+    );
+    expect(res.status).toBe(200);
+    const traveler = await prisma.traveler.findUnique({ where: { travelerNo: tr } });
+    expect(traveler?.partNo).toBe(PART_NO);
+  });
+});
+
+describe("FID-ERP-002 — stripPartSuffix (Finished Part Number)", () => {
+  it("cắt hậu tố biết trước (kể cả nhiều hậu tố cộng dồn)", () => {
+    expect(stripPartSuffix("11546389-T")).toBe("11546389");
+    expect(stripPartSuffix("11549168-CA-IN-B")).toBe("11549168");
+    expect(stripPartSuffix("11561645-HT")).toBe("11561645");
+  });
+
+  it("KHÔNG cắt dấu '-' là một phần mã gốc thật (không khớp hậu tố biết trước)", () => {
+    expect(stripPartSuffix("1015463X-03")).toBe("1015463X-03");
+    expect(stripPartSuffix("100-5829")).toBe("100-5829");
+    expect(stripPartSuffix("1454548-00-A")).toBe("1454548-00");
+  });
+
+  it("Part# không có hậu tố -> giữ nguyên", () => {
+    expect(stripPartSuffix("40073474")).toBe("40073474");
+  });
 });
 
 describe("FID-ERP-002 — /api/capture/confirm destination='warehouse'", () => {
@@ -228,6 +265,86 @@ describe("FID-ERP-002 — /api/capture/confirm destination='warehouse'", () => {
   });
 });
 
+// v1.2 (2026-09-19) — nút tắt "PO + Nhận nguyên liệu luôn (bypass)": scan
+// lại chính file PO, đọc Pieces làm qty RECEIVE luôn, dùng chung code path
+// với "warehouse" nhưng upsert Traveler CÓ THÊM poNo. Andy xác nhận cả
+// OFFICE lẫn ADMIN dùng được, không cần đánh dấu audit riêng.
+describe("FID-ERP-002 v1.2 — /api/capture/confirm destination='po_receive'", () => {
+  it("ghi RECEIVE + poNo trong 1 transaction (khác 'warehouse' — có thêm poNo)", async () => {
+    const tr = travelerNo("POR1");
+    const res = await confirmPOST(
+      makeConfirmRequest({
+        destination: "po_receive",
+        rows: [{ travelerNo: tr, partNo: PART_NO, poNo: "PO-BYPASS-1", potNo: "693", qty: 45000 }],
+        confirmedBy: "111",
+      }),
+    );
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.saved).toBe(1);
+    expect(data.moveIds).toHaveLength(1);
+
+    const traveler = await prisma.traveler.findUnique({ where: { travelerNo: tr } });
+    expect(traveler?.poNo).toBe("PO-BYPASS-1");
+    expect(traveler?.potNo).toBe("693");
+    const moves = await prisma.stockMove.findMany({ where: { travelerNo: tr, moveType: "RECEIVE" } });
+    expect(moves).toHaveLength(1);
+    expect(moves[0].qty).toBe(45000);
+  });
+
+  it("đăng nhập trạm FACTORY -> 400 (giống 'warehouse', Xưởng không có cổng này)", async () => {
+    const tr = travelerNo("POR-FACTORY");
+    const res = await confirmPOST(
+      makeConfirmRequest(
+        {
+          destination: "po_receive",
+          rows: [{ travelerNo: tr, partNo: PART_NO, poNo: "PO-X", potNo: "1", qty: 10 }],
+          confirmedBy: "111",
+        },
+        "FACTORY",
+      ),
+    );
+    expect(res.status).toBe(400);
+    const traveler = await prisma.traveler.findUnique({ where: { travelerNo: tr } });
+    expect(traveler).toBeNull();
+  });
+
+  it("chặn qty <= 0 ở API trước khi chạm CHECK constraint", async () => {
+    const tr = travelerNo("POR-QTY0");
+    const res = await confirmPOST(
+      makeConfirmRequest({
+        destination: "po_receive",
+        rows: [{ travelerNo: tr, partNo: PART_NO, poNo: "PO-X", potNo: "1", qty: 0 }],
+        confirmedBy: "111",
+      }),
+    );
+    expect(res.status).toBe(400);
+    const traveler = await prisma.traveler.findUnique({ where: { travelerNo: tr } });
+    expect(traveler).toBeNull();
+  });
+
+  it("không gửi poNo (rỗng) -> KHÔNG xoá poNo đã có từ trước (chỉ set khi thật sự có giá trị)", async () => {
+    const tr = travelerNo("POR-KEEP-PO");
+    await confirmPOST(
+      makeConfirmRequest({
+        destination: "po",
+        rows: [{ travelerNo: tr, partNo: PART_NO, poNo: "PO-GIU-LAI" }],
+        confirmedBy: "111",
+      }),
+    );
+    const res2 = await confirmPOST(
+      makeConfirmRequest({
+        destination: "warehouse",
+        rows: [{ travelerNo: tr, partNo: PART_NO, potNo: "1", qty: 100 }],
+        confirmedBy: "111",
+      }),
+    );
+    expect(res2.status).toBe(200);
+    const traveler = await prisma.traveler.findUnique({ where: { travelerNo: tr } });
+    expect(traveler?.poNo).toBe("PO-GIU-LAI");
+  });
+});
+
 describe("FID-ERP-002 — UI: nút Xác nhận & Lưu disable khi field bắt buộc trống", () => {
   it("warehouse: thiếu travelerNo/partNo/qty -> incomplete", () => {
     expect(isCaptureRowIncomplete({ travelerNo: "", partNo: "P", poNo: null, potNo: null, qty: 1, confidence: 1, lowConfidenceFields: [] }, "warehouse")).toBe(true);
@@ -243,5 +360,10 @@ describe("FID-ERP-002 — UI: nút Xác nhận & Lưu disable khi field bắt bu
   it("po: chỉ cần travelerNo/partNo (không cần qty)", () => {
     expect(isCaptureRowIncomplete({ travelerNo: "T", partNo: "P", poNo: "PO-1", potNo: null, qty: null, confidence: 1, lowConfidenceFields: [] }, "po")).toBe(false);
     expect(isCaptureRowIncomplete({ travelerNo: "", partNo: "P", poNo: "PO-1", potNo: null, qty: null, confidence: 1, lowConfidenceFields: [] }, "po")).toBe(true);
+  });
+
+  it("po_receive (v1.2): giống warehouse — cần qty > 0 dù có poNo", () => {
+    expect(isCaptureRowIncomplete({ travelerNo: "T", partNo: "P", poNo: "PO-1", potNo: "693", qty: null, confidence: 1, lowConfidenceFields: [] }, "po_receive")).toBe(true);
+    expect(isCaptureRowIncomplete({ travelerNo: "T", partNo: "P", poNo: "PO-1", potNo: "693", qty: 45000, confidence: 1, lowConfidenceFields: [] }, "po_receive")).toBe(false);
   });
 });
