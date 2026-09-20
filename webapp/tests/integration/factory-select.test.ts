@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { NextRequest } from "next/server";
 import { GET as defectTypesGET } from "../../app/api/factory/defect-types/route";
 import { POST as confirmPOST } from "../../app/api/factory/select/confirm/route";
+import { GET as lookupGET } from "../../app/api/factory/select/lookup/route";
 import { prisma } from "../../lib/prisma";
 
 const RUN = Date.now().toString();
@@ -43,11 +44,11 @@ function makeConfirmRequest(body: unknown) {
 }
 
 describe("FID-ERP-003 — GET /api/factory/defect-types", () => {
-  it("trả đúng 10 giá trị khớp seed FID-ERP-001", async () => {
+  it("trả đúng 11 giá trị khớp seed FID-ERP-001 (10 gốc + OTHERS, v1.4)", async () => {
     const res = await defectTypesGET();
     const data = await res.json();
     expect(data.ok).toBe(true);
-    expect(data.types).toHaveLength(10);
+    expect(data.types).toHaveLength(11);
   });
 });
 
@@ -228,5 +229,89 @@ describe("FID-ERP-003 — ghi đúng SELECT + SCRAP + REWORK", () => {
     const data = await res.json();
     expect(res.status).toBe(200);
     expect(data.warnings).toEqual([]);
+  });
+
+  // v1.4 (Mục 13.3) — Total do QA sửa tay được, nên nhắc nếu không chia hết
+  // Pcs/Carton (PART_NO của test này qtyPerBox=100). Chỉ cảnh báo, vẫn ghi.
+  it("selectQty không chia hết qtyPerBox -> vẫn 200 + có warning", async () => {
+    const tr = await makeTraveler("NOTDIV");
+    const res = await confirmPOST(
+      makeConfirmRequest({
+        travelerNo: tr,
+        machineCode: "MC112",
+        operatorCode: "275",
+        shift: "MRNNG",
+        selectQty: 1050,
+      }),
+    );
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.warnings.some((w: string) => w.includes("không chia hết"))).toBe(true);
+    const count = await prisma.stockMove.count({ where: { travelerNo: tr, moveType: "SELECT" } });
+    expect(count).toBe(1);
+  });
+
+  it("selectQty chia hết qtyPerBox -> không có warning chia hết", async () => {
+    const tr = await makeTraveler("DIV");
+    const res = await confirmPOST(
+      makeConfirmRequest({
+        travelerNo: tr,
+        machineCode: "MC112",
+        operatorCode: "275",
+        shift: "MRNNG",
+        selectQty: 1100,
+      }),
+    );
+    const data = await res.json();
+    expect(data.warnings.some((w: string) => w.includes("không chia hết"))).toBe(false);
+  });
+});
+
+describe("FID-ERP-003 v1.4 — GET /api/factory/select/lookup", () => {
+  function makeLookupRequest(travelerNoParam: string) {
+    return asNextRequest(
+      new Request(`http://localhost/api/factory/select/lookup?travelerNo=${encodeURIComponent(travelerNoParam)}`),
+    );
+  }
+
+  it("Traveler có trong DB -> trả partNo/potNo/lotNo/qtyPerBox đúng của Part# Traveler đó", async () => {
+    const tr = travelerNo("LOOKUP");
+    await prisma.traveler.create({
+      data: { travelerNo: tr, partNo: PART_NO, poNo: "PO-9", potNo: "426" },
+    });
+    const res = await lookupGET(makeLookupRequest(`  ${tr}  `)); // scanner có thể kèm khoảng trắng
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.traveler).toMatchObject({
+      travelerNo: tr,
+      partNo: PART_NO,
+      poNo: "PO-9",
+      potNo: "426",
+      qtyPerBox: 100,
+      shipped: false,
+    });
+  });
+
+  it("qtyPerBox đúng Part# Traveler, không lẫn Part# khác chứa cùng chuỗi", async () => {
+    // Part# dài hơn, chứa PART_NO làm tiền tố — /api/search (contains) sẽ lẫn, route này thì không.
+    const longer = `${PART_NO}-EXTRA`;
+    await prisma.partControl.create({ data: { partNo: longer, qtyPerBox: 777, client: "Infasco" } });
+    const tr = travelerNo("LOOKUP2");
+    await prisma.traveler.create({ data: { travelerNo: tr, partNo: PART_NO } });
+    const res = await lookupGET(makeLookupRequest(tr));
+    const data = await res.json();
+    expect(data.traveler.qtyPerBox).toBe(100);
+  });
+
+  it("Traveler không tồn tại -> 404", async () => {
+    const res = await lookupGET(makeLookupRequest(travelerNo("NOPE")));
+    expect(res.status).toBe(404);
+    const data = await res.json();
+    expect(data.ok).toBe(false);
+  });
+
+  it("thiếu travelerNo -> 400", async () => {
+    const res = await lookupGET(makeLookupRequest(""));
+    expect(res.status).toBe(400);
   });
 });

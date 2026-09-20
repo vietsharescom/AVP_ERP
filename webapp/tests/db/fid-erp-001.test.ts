@@ -136,9 +136,11 @@ describe("FID-ERP-001 — CHECK constraints trên stock_moves", () => {
 });
 
 describe("FID-ERP-001 — defect_types seed", () => {
-  it("có đúng 10 giá trị thật, không thiếu/thừa", async () => {
+  // v1.4 (FID-ERP-003 Mục 13.2b) — thêm "OTHERS": tờ Traveler giấy thật có 11
+  // dòng defect, seed ban đầu chỉ 10 (thiếu dòng "Others").
+  it("có đúng 11 giá trị thật (10 gốc + OTHERS), không thiếu/thừa", async () => {
     const types = await prisma.defectType.findMany();
-    expect(types).toHaveLength(10);
+    expect(types).toHaveLength(11);
     const codes = types.map((t) => t.code).sort();
     expect(codes).toEqual(
       [
@@ -152,6 +154,7 @@ describe("FID-ERP-001 — defect_types seed", () => {
         "UPSIDE_DOWN_WASHER",
         "DAMAGED_PILOT",
         "LOOSE_WASHER_NUT",
+        "OTHERS",
       ].sort(),
     );
   });

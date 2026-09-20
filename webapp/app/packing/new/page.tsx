@@ -6,6 +6,7 @@
 import { useState } from "react";
 import PageContainer from "../../../components/PageContainer";
 import { tokens } from "../../../lib/ui/tokens";
+import { usePickTraveler } from "../../../lib/ui/pickTraveler";
 
 type LookupResult = {
   travelerNo: string;
@@ -42,8 +43,8 @@ export default function NewPackingSlipPage() {
 
   const suggestedPallets = new Set(lines.map((l) => l.skidNo).filter((s): s is string => s != null)).size;
 
-  async function lookup() {
-    const tr = travelerNoInput.trim();
+  async function lookup(target?: string) {
+    const tr = (target ?? travelerNoInput).trim();
     if (tr === "") return;
     setLooking(true);
     setLookupError(null);
@@ -60,6 +61,12 @@ export default function NewPackingSlipPage() {
       setLooking(false);
     }
   }
+
+  // FID-ERP-015 — bấm Traveler trong kết quả ô tìm kiếm chung: điền + tra luôn.
+  usePickTraveler((no) => {
+    setTravelerNoInput(no);
+    void lookup(no);
+  });
 
   function addLine() {
     if (!lookupResult || !lookupResult.eligible) return;
@@ -132,7 +139,7 @@ export default function NewPackingSlipPage() {
             onChange={(e) => setTravelerNoInput(e.target.value)}
             style={{ flex: 1 }}
           />
-          <button onClick={lookup} disabled={looking || travelerNoInput.trim() === ""}>
+          <button onClick={() => lookup()} disabled={looking || travelerNoInput.trim() === ""}>
             {looking ? "Đang tra..." : "Tra"}
           </button>
         </div>

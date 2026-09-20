@@ -96,6 +96,12 @@ describe("FID-ERP-011 — lib/auth: isPublicPath / isStationAllowed (logic middl
     expect(isStationAllowed("FACTORY", "/factory/select")).toBe(true);
     expect(isStationAllowed("FACTORY", "/wrapping/check")).toBe(true);
     expect(isStationAllowed("FACTORY", "/search")).toBe(true);
+    // FID-ERP-015 — trang chi tiết chỉ đọc, đối xứng cả 3 trạm.
+    for (const station of ["OFFICE", "FACTORY", "ADMIN"] as const) {
+      expect(isStationAllowed(station, "/view/traveler/718779")).toBe(true);
+      expect(isStationAllowed(station, "/view/ps/30120")).toBe(true);
+      expect(isStationAllowed(station, "/view/part/40073474")).toBe(true);
+    }
     expect(isStationAllowed("FACTORY", "/capture")).toBe(false);
     expect(isStationAllowed("FACTORY", "/api/lot/update")).toBe(false);
     expect(isStationAllowed("FACTORY", "/packing/new")).toBe(false);

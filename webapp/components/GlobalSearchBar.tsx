@@ -3,7 +3,14 @@
 // FID-ERP-004 — ô search DUY NHẤT, gắn ở webapp/app/layout.tsx nên hiện
 // ở MỌI trang, đối xứng cả 3 điểm truy cập (Office/Xưởng/Admin thấy y
 // hệt nhau — không phân quyền như add-file/OCR).
+// FID-ERP-015 — mọi dòng kết quả BẤM ĐƯỢC: Traveler -> điền vào ô Traveler# của trang
+// đang mở (nếu có, xem lib/ui/pickTraveler.ts) hoặc mở /view/traveler/<no>; link "Chi
+// tiết" luôn mở trang chi tiết; Packing Slip -> /view/ps; Part# -> /view/part.
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { requestPickTraveler } from "../lib/ui/pickTraveler";
+import styles from "./GlobalSearchBar.module.css";
 
 type TravelerResult = {
   travelerNo: string;
@@ -43,6 +50,22 @@ export default function GlobalSearchBar({ size = "default" }: GlobalSearchBarPro
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<SearchResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  function closeResults() {
+    setQuery("");
+    setResult(null);
+  }
+
+  // Trang nào có ô Traveler# sẽ nhận sự kiện và tự điền + tra; không ai nhận -> mở trang chi tiết.
+  function pickTraveler(travelerNo: string) {
+    if (requestPickTraveler(travelerNo)) {
+      closeResults();
+    } else {
+      router.push(`/view/traveler/${encodeURIComponent(travelerNo)}`);
+      closeResults();
+    }
+  }
 
   useEffect(() => {
     const q = query.trim();
@@ -97,15 +120,24 @@ export default function GlobalSearchBar({ size = "default" }: GlobalSearchBarPro
                 Traveler
               </p>
               {result.travelers.map((t) => (
-                <div key={t.travelerNo} style={{ padding: "6px 12px", fontSize: 13, display: "flex", justifyContent: "space-between" }}>
-                  <span>
-                    Traveler <b>{t.travelerNo}</b> · Part# {t.partNo}
-                    {t.poNo && ` · PO ${t.poNo}`}
-                    {t.potNo && ` · Pot# ${t.potNo}`}
-                    {t.lotNo && ` · Lot ${t.lotNo}`}
-                    {t.lastMoveType && ` · ${t.lastMoveType}`}
-                  </span>
-                  <span style={{ color: t.shipped ? "#999" : "#166534" }}>{t.shipped ? "Đã xuất" : "Chưa xuất"}</span>
+                <div key={t.travelerNo} className={styles.row}>
+                  <button type="button" className={styles.pick} onClick={() => pickTraveler(t.travelerNo)}>
+                    <span>
+                      Traveler <b>{t.travelerNo}</b> · Part# {t.partNo}
+                      {t.poNo && ` · PO ${t.poNo}`}
+                      {t.potNo && ` · Pot# ${t.potNo}`}
+                      {t.lotNo && ` · Lot ${t.lotNo}`}
+                      {t.lastMoveType && ` · ${t.lastMoveType}`}
+                    </span>
+                    <span style={{ color: t.shipped ? "#999" : "#166534" }}>{t.shipped ? "Đã xuất" : "Chưa xuất"}</span>
+                  </button>
+                  <Link
+                    href={`/view/traveler/${encodeURIComponent(t.travelerNo)}`}
+                    className={styles.detail}
+                    onClick={closeResults}
+                  >
+                    Chi tiết
+                  </Link>
                 </div>
               ))}
             </div>
@@ -116,9 +148,14 @@ export default function GlobalSearchBar({ size = "default" }: GlobalSearchBarPro
                 Packing Slip
               </p>
               {result.packingSlips.map((ps) => (
-                <div key={ps.psNo} style={{ padding: "6px 12px", fontSize: 13 }}>
+                <Link
+                  key={ps.psNo}
+                  href={`/view/ps/${encodeURIComponent(ps.psNo)}`}
+                  className={styles.linkRow}
+                  onClick={closeResults}
+                >
                   PS <b>{ps.psNo}</b> · {ps.lineCount} dòng · Pallets {ps.totalPallets} · Empty {ps.totalEmpty}
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -128,9 +165,14 @@ export default function GlobalSearchBar({ size = "default" }: GlobalSearchBarPro
                 Part Control
               </p>
               {result.partControls.map((pc) => (
-                <div key={pc.partNo} style={{ padding: "6px 12px", fontSize: 13 }}>
+                <Link
+                  key={pc.partNo}
+                  href={`/view/part/${encodeURIComponent(pc.partNo)}`}
+                  className={styles.linkRow}
+                  onClick={closeResults}
+                >
                   Part# <b>{pc.partNo}</b> · Qty/box {pc.qtyPerBox} · {pc.client}
-                </div>
+                </Link>
               ))}
             </div>
           )}

@@ -11,6 +11,7 @@ import { prisma } from "../../../../../lib/prisma";
 import { generateLotPlaceholder } from "../../../../../lib/lot";
 import { hasReturnMove } from "../../../../../lib/rework";
 import { shiftWarning } from "../../../../../lib/shift";
+import { notDivisibleWarning } from "../../../../../lib/factoryEntry";
 
 type DefectInput = { reasonCode?: unknown; qty?: unknown };
 type ReworkInput = { qty?: unknown; note?: unknown };
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const traveler = await prisma.traveler.findUnique({ where: { travelerNo } });
+  const traveler = await prisma.traveler.findUnique({ where: { travelerNo }, include: { part: true } });
   if (!traveler) {
     return badRequest(
       `Traveler "${travelerNo}" chưa tồn tại — cần ghi RECEIVE ở Kho nguyên liệu (FID-ERP-002) trước.`,
@@ -207,6 +208,10 @@ export async function POST(req: NextRequest) {
     const warnings: string[] = [];
     const selectShiftWarning = shiftWarning(normShift);
     if (selectShiftWarning) warnings.push(selectShiftWarning);
+    // v1.4 (Mục 13.3) — Total do QA sửa tay được, nên nhắc nếu không chia
+    // hết Pcs/Carton (hợp lệ khi thùng cuối thiếu — chỉ cảnh báo).
+    const divisibleWarning = notDivisibleWarning(selectQty, traveler.part.qtyPerBox);
+    if (divisibleWarning) warnings.push(divisibleWarning);
 
     return NextResponse.json({
       ok: true,

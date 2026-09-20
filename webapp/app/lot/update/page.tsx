@@ -4,6 +4,7 @@
 // bằng regex (KHÔNG AI), xem lại rồi xác nhận cập nhật hàng loạt.
 import { useState } from "react";
 import PageContainer from "../../../components/PageContainer";
+import { usePickTraveler } from "../../../lib/ui/pickTraveler";
 
 type Match = { travelerNo: string; lotNo: string };
 
@@ -22,6 +23,9 @@ export default function LotUpdatePage() {
   const [concessionBy, setConcessionBy] = useState("");
   const [concessionReason, setConcessionReason] = useState("");
   const [concessionResult, setConcessionResult] = useState<string | null>(null);
+
+  // FID-ERP-015 — bấm Traveler trong kết quả ô tìm kiếm chung: điền vào ô Traveler# của Concession.
+  usePickTraveler((no) => setConcessionTraveler(no));
 
   async function parseEmail() {
     setLoading(true);

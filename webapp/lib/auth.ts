@@ -87,6 +87,8 @@ const ROUTE_RULES: RouteRule[] = [
   ...FACTORY_API_PREFIXES.map((prefix) => ({ prefix, stations: ["FACTORY"] as Station[] })),
   { prefix: "/search", stations: ["OFFICE", "FACTORY", "ADMIN"] },
   { prefix: "/api/search", stations: ["OFFICE", "FACTORY", "ADMIN"] },
+  // FID-ERP-015 — trang chi tiết chỉ đọc (Traveler/PS/Part#), đối xứng như ô search.
+  { prefix: "/view", stations: ["OFFICE", "FACTORY", "ADMIN"] },
 ];
 
 export const PUBLIC_PATH_PREFIXES = ["/login", "/api/auth/login", "/_next", "/favicon.ico"];

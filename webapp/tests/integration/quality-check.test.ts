@@ -4,6 +4,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { NextRequest } from "next/server";
 import { POST as checkPOST } from "../../app/api/quality/check/route";
+import { GET as lookupGET } from "../../app/api/quality/lookup/route";
 import { prisma } from "../../lib/prisma";
 
 const RUN = Date.now().toString();
@@ -372,5 +373,67 @@ describe("FID-ERP-005 — quality_checks bất biến ở tầng database", () =
     await expect(prisma.qualityCheck.delete({ where: { id: data.qualityCheckId } })).rejects.toThrow(
       /append-only/,
     );
+  });
+});
+
+// FID-ERP-005 v1.5 (Mục 15.4) — GET /api/quality/lookup cho form Wrapping tự điền.
+describe("FID-ERP-005 v1.5 — GET /api/quality/lookup", () => {
+  function makeLookupRequest(travelerNoParam: string) {
+    return new Request(
+      `http://localhost/api/quality/lookup?travelerNo=${encodeURIComponent(travelerNoParam)}`,
+    ) as unknown as NextRequest;
+  }
+
+  it("sau SELECT: trả đúng selectedQty/packedQty/availableToPack, qtyPerBox, lastSelect; chưa có lần kiểm tra -> null", async () => {
+    const tr = await makeTraveler("LK1"); // SELECT 1000, máy MC1, người 111
+    const res = await lookupGET(makeLookupRequest(`  ${tr}  `)); // scanner có thể kèm khoảng trắng
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.traveler).toMatchObject({
+      travelerNo: tr,
+      partNo: PART_NO,
+      qtyPerBox: 100,
+      selectedQty: 1000,
+      packedQty: 0,
+      availableToPack: 1000,
+      lastSelect: { machineCode: "MC1", operatorCode: "111", shift: "DAY" },
+      lastQualityCheck: null,
+      shipped: false,
+    });
+  });
+
+  it("sau PACK 1 phần: packedQty/availableToPack cập nhật, lastQualityCheck có status", async () => {
+    const tr = await makeTraveler("LK2");
+    const packRes = await checkPOST(
+      makeRequest({
+        travelerNo: tr,
+        status: "GOOD",
+        checkedBy: "290",
+        pack: { boxCount: 4, qty: 400, skidNo: "77", machineCode: "MC1", shift: "MRNNG" },
+      }),
+    );
+    expect(packRes.status).toBe(200);
+    const data = await (await lookupGET(makeLookupRequest(tr))).json();
+    expect(data.traveler.packedQty).toBe(400);
+    expect(data.traveler.availableToPack).toBe(600);
+    expect(data.traveler.lastQualityCheck.status).toBe("GOOD");
+    expect(data.traveler.lastMoveType).toBe("PACK");
+  });
+
+  it("lastSelect là dòng SELECT MỚI NHẤT khi có nhiều lần lựa", async () => {
+    const tr = await makeTraveler("LK3");
+    await prisma.stockMove.create({
+      data: { travelerNo: tr, moveType: "SELECT", qty: 200, machineCode: "MC9", operatorCode: "222", shift: "MRNNG" },
+    });
+    const data = await (await lookupGET(makeLookupRequest(tr))).json();
+    expect(data.traveler.selectedQty).toBe(1200);
+    expect(data.traveler.lastSelect.machineCode).toBe("MC9");
+  });
+
+  it("Traveler không tồn tại -> 404; thiếu travelerNo -> 400", async () => {
+    const res404 = await lookupGET(makeLookupRequest(travelerNo("NOPE")));
+    expect(res404.status).toBe(404);
+    const res400 = await lookupGET(makeLookupRequest(""));
+    expect(res400.status).toBe(400);
   });
 });
